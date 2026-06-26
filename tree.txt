@@ -1,0 +1,43 @@
+.
+├── Makefile
+├── README.md
+├── STRUCTURE.md
+├── docs
+│   ├── ARCHITECTURE.md
+│   ├── COST.md
+│   ├── EVIDENCE
+│   │   └── README.md
+│   └── RUNBOOK.md
+├── gitops
+│   └── README.md
+├── infra
+│   ├── ansible
+│   │   └── README.md
+│   └── terraform
+│       ├── README.md
+│       ├── env
+│       │   ├── dev.tfvars
+│       │   ├── local.tfvars
+│       │   └── prod.tfvars
+│       ├── main.tf
+│       ├── modules
+│       │   ├── compute
+│       │   │   ├── main.tf
+│       │   │   └── variables.tf
+│       │   ├── network
+│       │   │   ├── main.tf
+│       │   │   └── variables.tf
+│       │   └── security
+│       │       ├── main.tf
+│       │       └── variables.tf
+│       ├── provider.tf
+│       ├── templates
+│       │   ├── inventory.tftpl
+│       │   ├── k3s-agent.sh
+│       │   └── k3s-server.sh
+│       └── variables.tf
+├── logs
+│   └── make-actions.log
+├── manifests
+│   └── README.md
+

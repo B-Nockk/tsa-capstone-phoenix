@@ -1,0 +1,22 @@
+[all:vars]
+ansible_user=ubuntu
+ansible_ssh_private_key_file=${ssh_private_key_path}
+ansible_python_interpreter=/usr/bin/python3
+
+[control_plane]
+%{ for ip in control_plane_public_ips ~}
+${ip} ansible_host=${ip} node_type=control-plane
+%{ endfor ~}
+
+[workers]
+%{ for ip in worker_public_ips ~}
+${ip} ansible_host=${ip} node_type=worker
+%{ endfor ~}
+
+[k3s_cluster:children]
+control_plane
+workers
+
+[k3s_cluster:vars]
+k3s_token=${k3s_token}
+control_plane_private_ip=${control_plane_private_ips[0]}
