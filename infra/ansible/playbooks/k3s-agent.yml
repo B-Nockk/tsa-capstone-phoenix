@@ -1,0 +1,13 @@
+---
+- name: Setup k3s worker nodes
+  hosts: workers
+  become: yes
+  gather_facts: yes
+
+  roles:
+    - base-hardening
+
+  tasks:
+    - name: Include k3s-agent role
+      include_role:
+        name: k3s-agent

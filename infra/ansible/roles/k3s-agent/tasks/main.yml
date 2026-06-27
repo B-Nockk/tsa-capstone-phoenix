@@ -1,0 +1,28 @@
+---
+- name: Get control plane private IP from inventory
+  set_fact:
+    control_plane_ip: "{{ hostvars[groups['control_plane'][0]]['ansible_default_ipv4']['address'] }}"
+
+- name: Install k3s agent
+  shell: |
+    curl -sfL https://get.k3s.io | \
+    INSTALL_K3S_VERSION="{{ k3s_version }}" \
+    K3S_URL="https://{{ control_plane_ip }}:6443" \
+    K3S_TOKEN="{{ hostvars[groups['control_plane'][0]]['node_token_stdout'] }}" \
+    sh -
+  args:
+    creates: /usr/local/bin/kubectl
+
+- name: Wait for node to join cluster
+  shell: |
+    sleep 10
+    kubectl get nodes 2>/dev/null | grep -q "{{ ansible_hostname }}"
+  register: result
+  until: result.rc == 0
+  retries: 30
+  delay: 10
+  delegate_to: "{{ groups['control_plane'][0] }}"
+
+- name: Display node status
+  debug:
+    msg: "Worker node {{ ansible_hostname }} joined successfully!"

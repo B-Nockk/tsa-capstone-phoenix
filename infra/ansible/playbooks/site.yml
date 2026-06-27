@@ -1,0 +1,24 @@
+---
+- name: Setup complete k3s cluster
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  roles:
+    - base-hardening
+
+- name: Setup control plane
+  hosts: control_plane
+  become: yes
+  gather_facts: yes
+
+  roles:
+    - k3s-server
+
+- name: Setup workers
+  hosts: workers
+  become: yes
+  gather_facts: yes
+
+  roles:
+    - k3s-agent

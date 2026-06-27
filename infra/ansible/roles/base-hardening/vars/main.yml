@@ -1,0 +1,17 @@
+---
+# Base hardening variables
+ssh_port: 22
+admin_user: ubuntu
+timezone: UTC
+packages_base:
+  - ufw
+  - fail2ban
+  - curl
+  - wget
+  - vim
+  - git
+  - net-tools
+  - htop
+  - ca-certificates
+  - gnupg
+  - lsb-release

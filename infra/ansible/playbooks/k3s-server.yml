@@ -1,0 +1,13 @@
+---
+- name: Setup k3s control plane
+  hosts: control_plane
+  become: yes
+  gather_facts: yes
+
+  roles:
+    - base-hardening
+
+  tasks:
+    - name: Include k3s-server role
+      include_role:
+        name: k3s-server
