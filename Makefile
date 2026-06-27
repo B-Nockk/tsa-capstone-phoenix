@@ -55,7 +55,7 @@ help:
 
 TF_ENV ?= dev
 TF_DIR := infra/terraform
-TF_VAR_FILE := $(TF_DIR)/env/$(TF_ENV).tfvars
+TF_VAR_FILE := $(abspath $(TF_DIR)/env/$(TF_ENV).tfvars)
 TF_ARGS := -var-file=$(TF_VAR_FILE)
 
 # Check if variable file exists

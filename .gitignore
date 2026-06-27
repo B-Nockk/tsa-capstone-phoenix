@@ -33,6 +33,7 @@ charts/*.tgz
 .vscode/
 
 # mine
+IGNORE
 
 # Terraform
 

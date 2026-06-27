@@ -1,21 +1,24 @@
 # ============================================
 # AMI (Ubuntu 22.04 LTS)
 # ============================================
-
-data "aws_ami" "ubuntu" {
-  most_recent = true
-  owners      = ["099720109477"] # Canonical
-
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-22.04-amd64-server-*"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
+data "aws_ssm_parameter" "ubuntu" {
+  name = "/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id"
 }
+
+# data "aws_ami" "ubuntu" {
+#   most_recent = true
+#   owners      = ["099720109477"] # Canonical
+
+#   filter {
+#     name   = "name"
+#     values = ["ubuntu/images/hvm-ssd/ubuntu-22.04-amd64-server-*"]
+#   }
+
+#   filter {
+#     name   = "virtualization-type"
+#     values = ["hvm"]
+#   }
+# }
 
 # ============================================
 # CONTROL PLANE NODE
@@ -24,7 +27,7 @@ data "aws_ami" "ubuntu" {
 resource "aws_instance" "control_plane" {
   count = var.node_count.control_plane
 
-  ami                    = data.aws_ami.ubuntu.id
+  ami                    = data.aws_ssm_parameter.ubuntu.value
   instance_type          = var.instance_type
   key_name               = var.ssh_key_name
   subnet_id              = var.public_subnet_ids[0]
@@ -58,7 +61,7 @@ resource "aws_instance" "control_plane" {
 resource "aws_instance" "workers" {
   count = var.node_count.workers
 
-  ami                    = data.aws_ami.ubuntu.id
+  ami                    = data.aws_ssm_parameter.ubuntu.value
   instance_type          = var.instance_type
   key_name               = var.ssh_key_name
   subnet_id              = var.public_subnet_ids[count.index % length(var.public_subnet_ids)]
