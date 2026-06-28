@@ -1,0 +1,106 @@
+# Default values for TaskApp
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Image settings
+images:
+  backend:
+    repository: ghcr.io/ts-a-devops/taskapp-backend
+    tag: "5d6b8fc"
+    pullPolicy: IfNotPresent
+  frontend:
+    repository: ghcr.io/ts-a-devops/taskapp-frontend
+    tag: "26da2b0"
+    pullPolicy: IfNotPresent
+  postgres:
+    repository: postgres
+    tag: "16-alpine"
+    pullPolicy: IfNotPresent
+
+# Replica counts
+replicaCount:
+  backend: 2
+  frontend: 2
+
+# PostgreSQL configuration
+postgresql:
+  enabled: true
+  auth:
+    username: taskapp_user
+    password: ""  # Must be set via --set or values-dev.yaml
+    database: taskapp
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+# Backend configuration
+backend:
+  env:
+    FLASK_ENV: production
+    CORS_ORIGINS: "http://localhost:8080,http://localhost:3000"
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  service:
+    port: 5000
+    targetPort: 5000
+
+# Frontend configuration
+frontend:
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+  service:
+    port: 80
+    targetPort: 80
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  hosts:
+    - host: taskapp.local
+      paths:
+        - path: /api
+          pathType: Prefix
+          backend:
+            service:
+              name: backend
+              port:
+                number: 5000
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: frontend
+              port:
+                number: 80
+
+# Secrets (values are set via --set or external secrets)
+secrets:
+  postgresPassword: ""  # Must be set
+  secretKey: ""         # Must be set
+
+# Namespace
+namespace: taskapp
+
+# Resource limits (global defaults)
+global:
+  namespace: taskapp

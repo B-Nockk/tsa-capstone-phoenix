@@ -1,203 +1,96 @@
 # ============================================
-# TSA Capstone Phoenix - Makefile
+# TSA Capstone Phoenix - Root Makefile
 # ============================================
-# Usage: make <target>
-#
-# Targets:
-#   help                - Show this help
-#   init                - Initialize Terraform
-#   plan                - Plan Terraform infrastructure
-#   apply               - Apply Terraform infrastructure
-#   destroy             - Destroy Terraform infrastructure
-#   output              - Show Terraform outputs
-#   ssh                 - SSH to control plane
-#   kubeconfig          - Get kubeconfig from control plane
-#   clean               - Clean up Terraform state files
-#   setup               - Full setup (init + plan + apply)
+# Orchestrates all infrastructure and application deployment
+# Usage: make <target> ENV=<dev|prod> [CLOUD=<aws|local>]
+
+SHELL := /bin/bash
+ROOT_DIR := $(shell pwd)
+
+# Include all modular makefiles
+include makefiles/common.mk
+include makefiles/terraform.mk
+include makefiles/ansible.mk
+include makefiles/kubernetes.mk
+include makefiles/helm.mk
+include makefiles/gitops.mk
+include makefiles/monitoring.mk
+include makefiles/ci-cd.mk
+
+# ============================================
+# Full Deployment Pipelines
 # ============================================
 
-# Colors for output
-GREEN  := $(shell tput -Txterm setaf 2)
-YELLOW := $(shell tput -Txterm setaf 3)
-RED    := $(shell tput -Txterm setaf 1)
-RESET  := $(shell tput -Txterm sgr0)
+.PHONY: local-up
+local-up: ## Full local deployment (k3d + all components)
+	@echo "$(GREEN)🚀 Starting local deployment...$(RESET)"
+	@$(MAKE) cluster-create ENV=dev CLOUD=local
+	@$(MAKE) ingress-install
+	@$(MAKE) helm-deploy ENV=dev
+	@$(MAKE) app-test ENV=dev
+	@echo "$(GREEN)✅ Local deployment complete!$(RESET)"
+	@echo "$(YELLOW)Access: http://$(BACKEND_EXTERNAL_HOST):$(BACKEND_EXTERNAL_PORT)$(RESET)"
 
+.PHONY: cloud-up
+cloud-up: ## Full cloud deployment (AWS + k3s + all components)
+	@echo "$(GREEN)🚀 Starting cloud deployment...$(RESET)"
+	@$(MAKE) infra-apply ENV=prod
+	@$(MAKE) ansible-run ENV=prod
+	@$(MAKE) cluster-context ENV=prod CLOUD=aws
+	@$(MAKE) ingress-install
+	@$(MAKE) helm-deploy-cloud ENV=prod
+	@$(MAKE) app-test ENV=prod
+	@echo "$(GREEN)✅ Cloud deployment complete!$(RESET)"
+	@echo "$(YELLOW)Access: https://$(HOST)$(RESET)"
+
+.PHONY: local-down
+local-down: ## Destroy local environment
+	@echo "$(RED)💥 Destroying local cluster...$(RESET)"
+	@$(MAKE) cluster-delete ENV=dev
+	@echo "$(GREEN)✅ Local environment destroyed$(RESET)"
+
+.PHONY: cloud-down
+cloud-down: ## Destroy cloud environment
+	@echo "$(RED)💥 Destroying cloud infrastructure...$(RESET)"
+	@$(MAKE) infra-destroy ENV=prod
+	@echo "$(GREEN)✅ Cloud infrastructure destroyed$(RESET)"
+
+# ============================================
+# Convenience Aliases
+# ============================================
+
+.PHONY: app-deploy
+app-deploy: helm-deploy ## Deploy application (alias)
+
+.PHONY: app-status
+app-status: helm-status ## Check application status (alias)
+
+.PHONY: app-rollback
+app-rollback: helm-rollback ## Rollback application (alias)
+
+.PHONY: app-uninstall
+app-uninstall: helm-uninstall ## Uninstall application (alias)
+
+# ============================================
+# CI/CD Pipelines (Single Command)
+# ============================================
+
+.PHONY: ci-local
+ci-local: ## Full local CI/CD pipeline (idempotent)
+	@echo "$(GREEN)🏗️  Running local CI/CD pipeline...$(RESET)"
+	@$(MAKE) local-up || (echo "$(RED)❌ Deployment failed$(RESET)" && exit 1)
+	@$(MAKE) app-test ENV=dev || (echo "$(RED)❌ Tests failed$(RESET)" && exit 1)
+	@echo "$(GREEN)✅ CI/CD pipeline passed!$(RESET)"
+
+.PHONY: ci-cloud
+ci-cloud: ## Full cloud CI/CD pipeline (idempotent)
+	@echo "$(GREEN)🏗️  Running cloud CI/CD pipeline...$(RESET)"
+	@$(MAKE) cloud-up || (echo "$(RED)❌ Deployment failed$(RESET)" && exit 1)
+	@$(MAKE) app-test ENV=prod || (echo "$(RED)❌ Tests failed$(RESET)" && exit 1)
+	@echo "$(GREEN)✅ CI/CD pipeline passed!$(RESET)"
+
+# ============================================
 # Default target
-.PHONY: help
-help:
-	@echo "${GREEN}TSA Capstone Phoenix - Makefile${RESET}"
-	@echo ""
-	@echo "${YELLOW}Usage:${RESET} make <target>"
-	@echo ""
-	@echo "${YELLOW}Infrastructure Targets:${RESET}"
-	@echo "  ${GREEN}init${RESET}        - Initialize Terraform"
-	@echo "  ${GREEN}plan${RESET}        - Plan Terraform infrastructure"
-	@echo "  ${GREEN}apply${RESET}       - Apply Terraform infrastructure"
-	@echo "  ${GREEN}destroy${RESET}     - Destroy Terraform infrastructure"
-	@echo "  ${GREEN}output${RESET}      - Show Terraform outputs"
-	@echo "  ${GREEN}ssh${RESET}         - SSH to control plane"
-	@echo "  ${GREEN}kubeconfig${RESET}  - Get kubeconfig from control plane"
-	@echo "  ${GREEN}clean${RESET}       - Clean up Terraform state files"
-	@echo "  ${GREEN}setup${RESET}       - Full setup (init + plan + apply)"
-	@echo ""
-	@echo "${YELLOW}Environment:${RESET}"
-	@echo "  TF_ENV          - Environment to use (dev/prod), default: dev"
-	@echo "  TF_VAR_FILE     - Variable file to use, default: env/dev.tfvars"
-	@echo ""
-	@echo "${YELLOW}Examples:${RESET}"
-	@echo "  make init TF_ENV=dev"
-	@echo "  make apply TF_ENV=prod"
-	@echo "  make setup TF_ENV=dev"
-
-# ============================================
-# Environment Configuration
 # ============================================
 
-TF_ENV ?= dev
-TF_DIR := infra/terraform
-TF_VAR_FILE := $(abspath $(TF_DIR)/env/$(TF_ENV).tfvars)
-TF_ARGS := -var-file=$(TF_VAR_FILE)
-
-# Check if variable file exists
-check-env:
-	@if [ ! -f $(TF_VAR_FILE) ]; then \
-		echo "$(RED)Error: $(TF_VAR_FILE) not found!$(RESET)"; \
-		echo "Available files:"; \
-		ls -la $(TF_DIR)/env/ 2>/dev/null || echo "  No files found"; \
-		exit 1; \
-	fi
-
-# ============================================
-# Terraform Commands
-# ============================================
-
-.PHONY: init
-init: check-env
-	@echo "$(GREEN)Initializing Terraform...$(RESET)"
-	@cd $(TF_DIR) && terraform init
-	@echo "$(GREEN)✓ Initialized!$(RESET)"
-
-.PHONY: plan
-plan: check-env
-	@echo "$(YELLOW)Planning infrastructure for $(TF_ENV)...$(RESET)"
-	@cd $(TF_DIR) && terraform plan $(TF_ARGS)
-	@echo "$(GREEN)✓ Plan complete!$(RESET)"
-
-.PHONY: apply
-apply: check-env
-	@echo "$(YELLOW)Applying infrastructure for $(TF_ENV)...$(RESET)"
-	@cd $(TF_DIR) && terraform apply $(TF_ARGS) -auto-approve
-	@echo "$(GREEN)✓ Infrastructure applied!$(RESET)"
-	@make output
-
-.PHONY: destroy
-destroy: check-env
-	@echo "$(RED)WARNING: This will destroy all infrastructure for $(TF_ENV)!$(RESET)"
-	@read -p "Are you sure? (y/N) " -n 1 -r; \
-	echo ""; \
-	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
-		cd $(TF_DIR) && terraform destroy $(TF_ARGS) -auto-approve; \
-		echo "$(GREEN)✓ Infrastructure destroyed!$(RESET)"; \
-	else \
-		echo "$(RED)Aborted.$(RESET)"; \
-	fi
-
-.PHONY: output
-output: check-env
-	@echo "$(YELLOW)Terraform Outputs:$(RESET)"
-	@cd $(TF_DIR) && terraform output
-
-.PHONY: ssh
-ssh: check-env
-	@echo "$(YELLOW)SSH to control plane...$(RESET)"
-	@cd $(TF_DIR) && \
-	ssh -i $$(terraform output -raw ssh_private_key_path 2>/dev/null || echo "~/.ssh/tsa-capstone/tsa-capstone-key") \
-	ubuntu@$$(terraform output -raw control_plane_public_ips 2>/dev/null || echo "NO_IP")
-
-.PHONY: kubeconfig
-kubeconfig: check-env
-	@echo "$(YELLOW)Getting kubeconfig...$(RESET)"
-	@cd $(TF_DIR) && \
-	IP=$$(terraform output -raw control_plane_public_ips 2>/dev/null); \
-	KEY=$$(terraform output -raw ssh_private_key_path 2>/dev/null || echo "~/.ssh/tsa-capstone/tsa-capstone-key"); \
-	if [ -z "$$IP" ]; then \
-		echo "$(RED)No control plane IP found. Run 'make apply' first.$(RESET)"; \
-		exit 1; \
-	fi; \
-	scp -i $$KEY -o StrictHostKeyChecking=no ubuntu@$$IP:/etc/rancher/k3s/k3s.yaml ./kubeconfig-$(TF_ENV).yaml && \
-	sed -i "s/127.0.0.1/$$IP/g" ./kubeconfig-$(TF_ENV).yaml && \
-	echo "$(GREEN)✓ Kubeconfig saved to ./kubeconfig-$(TF_ENV).yaml$(RESET)" && \
-	echo "export KUBECONFIG=./kubeconfig-$(TF_ENV).yaml"
-
-.PHONY: clean
-clean:
-	@echo "$(YELLOW)Cleaning up Terraform state...$(RESET)"
-	@cd $(TF_DIR) && rm -rf .terraform/ terraform.tfstate* .terraform.lock.hcl tfplan
-	@rm -f kubeconfig-*.yaml
-	@echo "$(GREEN)✓ Cleaned up!$(RESET)"
-
-# ============================================
-# Setup Targets
-# ============================================
-
-.PHONY: setup
-setup: init plan apply
-	@echo "$(GREEN)✓ Setup complete!$(RESET)"
-	@echo ""
-	@echo "$(YELLOW)Next steps:$(RESET)"
-	@echo "  1. Get kubeconfig:    make kubeconfig"
-	@echo "  2. SSH to control:    make ssh"
-	@echo "  3. Deploy manifests:  cd manifests && kubectl apply -f ."
-	@echo "  4. Install ArgoCD:    cd gitops && make install"
-
-# ============================================
-# Quick Commands (for common tasks)
-# ============================================
-
-.PHONY: status
-status:
-	@echo "$(YELLOW)Checking cluster status...$(RESET)"
-	@kubectl get nodes
-	@kubectl get pods --all-namespaces
-
-.PHONY: logs
-logs:
-	@echo "$(YELLOW)Showing pod logs...$(RESET)"
-	@kubectl logs -f --all-containers --namespace=taskapp
-
-.PHONY: deploy
-deploy:
-	@echo "$(GREEN)Deploying application...$(RESET)"
-	@kubectl apply -f manifests/
-
-.PHONY: delete-app
-delete-app:
-	@echo "$(RED)Deleting application...$(RESET)"
-	@kubectl delete -f manifests/ || true
-
-# ============================================
-# Check dependencies
-# ============================================
-
-.PHONY: check-deps
-check-deps:
-	@echo "$(YELLOW)Checking dependencies...$(RESET)"
-	@command -v terraform >/dev/null 2>&1 || { echo "$(RED)❌ terraform not found$(RESET)"; exit 1; }
-	@command -v aws >/dev/null 2>&1 || { echo "$(RED)❌ aws CLI not found$(RESET)"; exit 1; }
-	@command -v kubectl >/dev/null 2>&1 || { echo "$(RED)❌ kubectl not found$(RESET)"; exit 1; }
-	@command -v ansible >/dev/null 2>&1 || { echo "$(RED)❌ ansible not found$(RESET)"; exit 1; }
-	@echo "$(GREEN)✓ All dependencies found!$(RESET)"
-
-# ============================================
-# Helpful info
-# ============================================
-
-.PHONY: info
-info: output
-	@echo ""
-	@echo "$(YELLOW)SSH Key:$(RESET)"
-	@cd $(TF_DIR) && terraform output ssh_private_key_path 2>/dev/null || echo "Not found"
-	@echo "$(YELLOW)SSH Command:$(RESET)"
-	@cd $(TF_DIR) && terraform output ssh_command 2>/dev/null || echo "Not found"
-	@echo "$(YELLOW)Ansible Inventory:$(RESET)"
-	@cd $(TF_DIR) && terraform output ansible_inventory_path 2>/dev/null || echo "Not found"
+.DEFAULT_GOAL := help

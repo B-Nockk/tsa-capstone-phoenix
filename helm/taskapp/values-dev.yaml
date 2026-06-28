@@ -1,0 +1,42 @@
+# Development values
+namespace: taskapp
+
+images:
+  backend:
+    tag: "5d6b8fc"
+  frontend:
+    tag: "26da2b0"
+
+replicaCount:
+  backend: 1
+  frontend: 1
+
+postgresql:
+  persistence:
+    size: 5Gi
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+backend:
+  env:
+    FLASK_ENV: development
+    CORS_ORIGINS: "http://localhost:8080,http://localhost:3000"
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+secrets:
+  postgresPassword: "dev_password_change_me"
+  secretKey: "dev_secret_key_change_me"
+
+httpRoute:
+  enabled: false
