@@ -108,6 +108,46 @@ ci-cloud: ## Full cloud CI/CD pipeline (idempotent)
 	@echo "$(GREEN)✅ CI/CD pipeline passed!$(RESET)"
 
 # ============================================
+# TLS Quick Commands
+# ============================================
+
+# .PHONY: tls-setup
+# tls-setup: ## Full TLS setup (ClusterIssuer + cert-manager)
+# 	@$(MAKE) cert-manager-install
+# 	@$(MAKE) cluster-issuer-apply
+# 	@echo "$(GREEN)✅ TLS setup complete$(RESET)"
+
+# .PHONY: tls-status
+# tls-status: ## Show full TLS status
+# 	@$(MAKE) cluster-issuer-status
+# 	@$(MAKE) cert-status
+
+# .PHONY: tls-deploy
+# tls-deploy: ## Deploy app with TLS (local or cloud)
+# 	@$(MAKE) helm-deploy-tls ENV=$(ENV) CLOUD=$(CLOUD)
+# 	@$(MAKE) cert-wait CERT_NAME=taskapp-tls
+# 	@echo "$(YELLOW)🔗 Access: https://$$(bash scripts/get-cert-host.sh $(ENV) $(CLOUD) taskapp)$(RESET)"
+
+# ============================================
+# TLS Commands (Root Level)
+# ============================================
+
+.PHONY: tls-setup
+tls-setup: ## Install cert-manager and apply ClusterIssuer
+	@$(MAKE) -f makefiles/kubernetes.mk cert-manager-install
+	@$(MAKE) -f makefiles/kubernetes.mk cluster-issuer-apply-retry
+	@$(MAKE) -f makefiles/kubernetes.mk cluster-issuer-status
+
+.PHONY: tls-status
+tls-status: ## Show TLS status
+	@$(MAKE) -f makefiles/kubernetes.mk cert-manager-status
+	@$(MAKE) -f makefiles/kubernetes.mk cluster-issuer-status
+
+.PHONY: tls-verify
+tls-verify: ## Verify full TLS setup
+	@$(MAKE) -f makefiles/diagnostics.mk diagnose-tls
+
+# ============================================
 # Default target
 # ============================================
 
