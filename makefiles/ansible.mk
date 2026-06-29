@@ -15,8 +15,8 @@ ANSIBLE_SSH_ARGS ?= -o StrictHostKeyChecking=no
 # ============================================
 # Help
 # ============================================
-.PHONY: help-raw
-help-raw:
+.PHONY: help-ansible
+help-ansible:
 	@echo "$(CYAN)Ansible:$(RESET)"
 	@echo "  ansible-check       Check Ansible inventory"
 	@echo "  ansible-ping        Ping all nodes"

@@ -14,8 +14,8 @@ GITOPS_APP_NAME     ?= taskapp
 # ============================================
 # Help
 # ============================================
-.PHONY: help-raw
-help-raw:
+.PHONY: help-gitops
+help-gitops:
 	@echo "$(CYAN)GitOps (ArgoCD):$(RESET)"
 	@echo "  argocd-install       Install ArgoCD"
 	@echo "  argocd-uninstall     Uninstall ArgoCD"

@@ -80,14 +80,21 @@ help: ## Show this help message
 	@echo "  NAMESPACE        Kubernetes namespace [default: taskapp]"
 	@echo "  HOST             Hostname for ingress [default: taskapp.local]"
 	@echo ""
-	@$(MAKE) -f makefiles/common.mk help-raw
-	@$(MAKE) -f makefiles/terraform.mk help-raw 2>/dev/null || true
-	@$(MAKE) -f makefiles/ansible.mk help-raw 2>/dev/null || true
-	@$(MAKE) -f makefiles/kubernetes.mk help-raw 2>/dev/null || true
-	@$(MAKE) -f makefiles/helm.mk help-raw 2>/dev/null || true
-	@$(MAKE) -f makefiles/gitops.mk help-raw 2>/dev/null || true
-	@$(MAKE) -f makefiles/monitoring.mk help-raw 2>/dev/null || true
-	@$(MAKE) -f makefiles/ci-cd.mk help-raw 2>/dev/null || true
+	@$(MAKE) help-common
+	@echo ""
+	@$(MAKE) help-terraform
+	@echo ""
+	@$(MAKE) help-ansible
+	@echo ""
+	@$(MAKE) help-kubernetes
+	@echo ""
+	@$(MAKE) help-helm
+	@echo ""
+	@$(MAKE) help-gitops
+	@echo ""
+	@$(MAKE) help-monitoring
+	@echo ""
+	@$(MAKE) help-cicd
 	@echo ""
 	@echo "$(YELLOW)Quick Start:$(RESET)"
 	@echo "  make local-up      Full local deployment"
@@ -95,8 +102,8 @@ help: ## Show this help message
 	@echo "  make local-down    Destroy local environment"
 	@echo "  make cloud-down    Destroy cloud environment"
 
-.PHONY: help-raw
-help-raw:
+.PHONY: help-common
+help-common:
 	@echo "$(CYAN)Common Targets:$(RESET)"
 	@echo "  help                 Show this help message"
 	@echo "  check-tools          Check if required tools are installed"

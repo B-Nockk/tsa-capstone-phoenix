@@ -16,8 +16,8 @@ FRONTEND_CONTEXT     ?= ../tsa_taskapp_frontend_cicd
 # ============================================
 # Help
 # ============================================
-.PHONY: help-raw
-help-raw:
+.PHONY: help-cicd
+help-cicd:
 	@echo "$(CYAN)CI/CD:$(RESET)"
 	@echo "  ci-validate          Validate all configurations"
 	@echo "  ci-build-images      Build Docker images"

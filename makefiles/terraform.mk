@@ -14,8 +14,8 @@ TF_PARALLELISM  ?= 10
 # ============================================
 # Help
 # ============================================
-.PHONY: help-raw
-help-raw:
+.PHONY: help-terraform
+help-terraform:
 	@echo "$(CYAN)Terraform:$(RESET)"
 	@echo "  infra-init           Initialize Terraform"
 	@echo "  infra-plan           Plan infrastructure changes"

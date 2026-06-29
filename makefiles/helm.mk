@@ -42,8 +42,8 @@ FRONTEND_EXTERNAL_URL  := http://$(FRONTEND_EXTERNAL_HOST):$(FRONTEND_EXTERNAL_P
 # ============================================
 # Help
 # ============================================
-.PHONY: help-raw
-help-raw:
+.PHONY: help-helm
+help-helm:
 	@echo "$(CYAN)Helm:$(RESET)"
 	@echo "  helm-deploy          Deploy/upgrade application via Helm"
 	@echo "  helm-deploy-cloud    Deploy to cloud with TLS"

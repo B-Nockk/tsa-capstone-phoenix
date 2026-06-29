@@ -19,8 +19,8 @@ CERT_MANAGER_VERSION  ?= 1.20.3
 # ============================================
 # Help
 # ============================================
-.PHONY: help-raw
-help-raw:
+.PHONY: help-kubernetes
+help-kubernetes:
 	@echo "$(CYAN)Kubernetes:$(RESET)"
 	@echo "  cluster-create       Create k3d/k3s cluster"
 	@echo "  cluster-delete       Delete cluster"

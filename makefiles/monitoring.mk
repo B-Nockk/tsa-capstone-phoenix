@@ -14,8 +14,8 @@ GRAFANA_PORT         ?= 3000
 # ============================================
 # Help
 # ============================================
-.PHONY: help-raw
-help-raw:
+.PHONY: help-monitoring
+help-monitoring:
 	@echo "$(CYAN)Monitoring:$(RESET)"
 	@echo "  monitoring-install   Install Prometheus + Grafana"
 	@echo "  monitoring-uninstall Uninstall monitoring"
