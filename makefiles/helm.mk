@@ -75,6 +75,10 @@ help-helm:
 	@echo "  install-cert-manager 	Install cert-manager"
 	@echo "  uninstall-cert-manager Uninstall cert-manager"
 	@echo "  apply-cluster-issuer 	Apply ClusterIssuer"
+	@echo ""
+	@echo "$(CYAN)TLS Deploy:$(RESET)"
+	@echo "  helm-deploy-tls       	Deploy/upgrade application with TLS"
+	@echo "  helm-deploy-argocd-tls  Deploy/upgrade ArgoCD with TLS"
 
 # ============================================
 # Repo Setup: Ingress Controller + Cert-Manager
@@ -222,6 +226,56 @@ helm-history: ## Show release history
 helm-uninstall: ## Uninstall application
 	@echo "$(RED)Uninstalling TaskApp...$(RESET)"
 	@helm uninstall taskapp -n $(NAMESPACE) || true
+
+# ============================================
+# Helm Deploy with TLS
+# ============================================
+
+.PHONY: helm-deploy-tls
+helm-deploy-tls: ## Deploy with TLS (auto-detects env)
+	@echo "$(GREEN)🌐 Deploying with TLS (ENV=$(ENV), CLOUD=$(CLOUD))...$(RESET)"
+	@# Get host
+	@HOST=$$(bash scripts/get-cert-host.sh $(ENV) $(CLOUD) taskapp); \
+	ISSUER="selfsigned-cluster-issuer"; \
+	if [ "$(CLOUD)" = "aws" ]; then \
+		ISSUER="letsencrypt-prod"; \
+		echo "$(YELLOW)Using Let's Encrypt (cloud)$(RESET)"; \
+	else \
+		echo "$(YELLOW)Using self-signed (local)$(RESET)"; \
+	fi; \
+	echo "$(YELLOW)Host: $$HOST$(RESET)"; \
+	echo "$(YELLOW)Issuer: $$ISSUER$(RESET)"; \
+	helm upgrade --install taskapp $(HELM_DIR) \
+		--namespace $(NAMESPACE) --create-namespace \
+		--values $(HELM_DIR)/values-$(ENV).yaml \
+		--set secrets.postgresPassword=$$POSTGRES_PASSWORD \
+		--set secrets.secretKey=$$SECRET_KEY \
+		--set ingress.hosts[0].host=$$HOST \
+		--set ingress.tls.enabled=true \
+		--set ingress.tls.issuer=$$ISSUER
+	@echo "$(GREEN)✅ Deployment with TLS complete$(RESET)"
+	@echo "$(YELLOW)📝 Certificate will be issued by cert-manager$(RESET)"
+	@echo "$(YELLOW)Check status: make cert-status$(RESET)"
+
+.PHONY: helm-deploy-argocd-tls
+helm-deploy-argocd-tls: ## Deploy ArgoCD with TLS
+	@echo "$(GREEN)🌐 Deploying ArgoCD with TLS (ENV=$(ENV), CLOUD=$(CLOUD))...$(RESET)"
+	@HOST="argocd.local"; \
+	ISSUER="selfsigned-cluster-issuer"; \
+	if [ "$(CLOUD)" = "aws" ]; then \
+		ARGOCD_HOST=$$(bash scripts/get-cert-host.sh $(ENV) $(CLOUD) argocd); \
+		HOST=$$ARGOCD_HOST; \
+		ISSUER="letsencrypt-prod"; \
+	fi; \
+	echo "$(YELLOW)Host: $$HOST$(RESET)"; \
+	echo "$(YELLOW)Issuer: $$ISSUER$(RESET)"; \
+	helm upgrade --install $(ARGOCD_RELEASE_NAME) $(ARGOCD_HELM_DIR) \
+		--namespace argocd \
+		--values $(ARGOCD_HELM_DIR)/values-$(ENV).yaml \
+		--set ingress.host=$$HOST \
+		--set ingress.tls=true \
+		--set ingress.clusterIssuer=$$ISSUER
+	@echo "$(GREEN)✅ ArgoCD TLS deployment complete$(RESET)"
 
 # ============================================
 # Validation & Debugging

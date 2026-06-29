@@ -30,11 +30,14 @@ help-gitops:
 	@echo "  argocd-install			Install ArgoCD"
 	@echo "  argocd-uninstall		Uninstall ArgoCD"
 	@echo "  argocd-portforward		Port-forward ArgoCD UI"
+	@echo "  argocd-port-forward	tls	Port-forward ArgoCD UI (preserves TLS)"
 	@echo "  argocd-login			Login to ArgoCD"
 	@echo "  argocd-apply			Apply ArgoCD applications"
 	@echo "  argocd-sync			Sync ArgoCD applications"
 	@echo "  argocd-status			Show ArgoCD status"
 	@echo "  argocd-deploy			Apply + Sync applications"
+	@echo "  argocd-url				Show ArgoCD access URL"
+	@echo "  argocd-get-password	Get ArgoCD admin password"
 
 # 	@echo "  argocd-render			Render ArgoCD Application for current env"
 # 	@echo "  argocd-deploy			Render + Apply + Sync applications"
@@ -68,6 +71,37 @@ argocd-portforward:
 argocd-login:
 	@echo "$(YELLOW)🔐 Logging into ArgoCD...$(RESET)"
 	@argocd login $(ARGOCD_SERVER) --insecure=$(ARGOCD_INSECURE) --username admin --password $$(kubectl -n $(ARGOCD_NAMESPACE) get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+
+# ============================================
+# ArgoCD Access (Preserve TLS)
+# ============================================
+
+.PHONY: argocd-port-forward
+argocd-port-forward: ## Port-forward ArgoCD UI (preserves TLS)
+	@echo "$(YELLOW)🔗 Port-forwarding ArgoCD UI to $(ARGOCD_SERVER)...$(RESET)"
+	@echo "$(YELLOW)🔑 Password: ArgoCD123 (or check with: make argocd-get-password)$(RESET)"
+	@kubectl -n $(ARGOCD_NAMESPACE) port-forward svc/argocd-server $(ARGOCD_SERVER_PORT):443
+
+.PHONY: argocd-url
+argocd-url: ## Show ArgoCD access URL
+	@echo "$(YELLOW)🔗 Access ArgoCD:$(RESET)"
+	@echo "$(GREEN)https://localhost:$(ARGOCD_SERVER_PORT)$(RESET)"
+	@echo "$(YELLOW)🔑 Password: ArgoCD123$(RESET)"
+	@echo "$(YELLOW)📝 Accept the self-signed certificate warning$(RESET)"
+
+.PHONY: argocd-login
+argocd-login: ## Login to ArgoCD via CLI
+	@echo "$(YELLOW)🔐 Logging into ArgoCD...$(RESET)"
+	@# Ensure port-forward is running
+	@kubectl -n $(ARGOCD_NAMESPACE) port-forward svc/argocd-server $(ARGOCD_SERVER_PORT):443 &>/dev/null &
+	@sleep 2
+	@argocd login $(ARGOCD_SERVER) --insecure=$(ARGOCD_INSECURE) --username admin --password $$(kubectl -n $(ARGOCD_NAMESPACE) get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d)
+
+.PHONY: argocd-get-password
+argocd-get-password: ## Get ArgoCD admin password
+	@echo "$(YELLOW)🔑 ArgoCD admin password:$(RESET)"
+	@kubectl -n $(ARGOCD_NAMESPACE) get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d || echo "Password not found (try: ArgoCD123)"
+	@echo ""
 
 # ============================================
 # GitOps Application Sync
@@ -109,6 +143,44 @@ argocd-status:
 	@kubectl -n $(ARGOCD_NAMESPACE) get pods
 	@echo ""
 	@echo "$(YELLOW)🔗 Access ArgoCD UI: kubectl port-forward -n $(ARGOCD_NAMESPACE) svc/argocd-server $(ARGOCD_SERVER_PORT):443$(RESET)"
+
+# ============================================
+# ArgoCD Management
+# ============================================
+
+.PHONY: argocd-reset
+argocd-reset: ## Reset ArgoCD admin password (usage: make argocd-reset PASSWORD=ArgoCD123)
+	@echo "$(YELLOW)🔑 Resetting ArgoCD password...$(RESET)"
+	@if ! command -v htpasswd &> /dev/null; then \
+		echo "$(YELLOW)📦 Installing htpasswd...$(RESET)"; \
+		sudo apt update && sudo apt install apache2-utils -y; \
+	fi
+	@PASS=${PASSWORD:-ArgoCD123}; \
+	echo "$(YELLOW)Setting password to: $$PASS$(RESET)"; \
+	HASH=$$(htpasswd -nbBC 10 admin $$PASS | cut -d: -f2); \
+	kubectl -n argocd patch secret argocd-secret -p '{"stringData": {"admin.password": "'$$HASH'", "admin.passwordMtime": "'$$(date +%FT%T%Z)'"}}'; \
+	kubectl -n argocd delete pods --all --grace-period=0 --force 2>/dev/null || true; \
+	kubectl -n argocd scale deployment argocd-server --replicas=0; \
+	sleep 2; \
+	kubectl -n argocd scale deployment argocd-server --replicas=1; \
+	kubectl -n argocd rollout status deployment/argocd-server --timeout=120s; \
+	echo "$(GREEN)✅ Password reset to: $$PASS$(RESET)"; \
+	echo "$(YELLOW)🔗 Port-forward: kubectl -n argocd port-forward svc/argocd-server 9090:443$(RESET)"
+
+.PHONY: argocd-ui
+argocd-ui: ## Port-forward ArgoCD UI
+	@echo "$(YELLOW)🔗 Port-forwarding ArgoCD UI to https://localhost:9090$(RESET)"
+	@echo "$(YELLOW)👤 admin / 🔑 ArgoCD123 (or your custom password)$(RESET)"
+	@echo "$(YELLOW)📝 Accept the self-signed certificate warning$(RESET)"
+	@kubectl -n argocd port-forward svc/argocd-server 9090:443
+
+.PHONY: argocd-install
+argocd-cli: ## Install ArgoCD CLI
+	@echo "$(YELLOW)📦 Installing ArgoCD CLI...$(RESET)"
+	@curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+	@sudo install -m 555 argocd /usr/local/bin/argocd
+	@rm argocd
+	@echo "$(GREEN)✅ ArgoCD CLI installed$(RESET)"
 
 .PHONY: argocd-deploy
 argocd-deploy: argocd-apply argocd-sync
