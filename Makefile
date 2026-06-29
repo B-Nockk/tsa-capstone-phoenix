@@ -10,6 +10,10 @@ ROOT_DIR := $(shell pwd)
 # Include common variables and utilities first
 include makefiles/common.mk
 
+# Include System Lifecycle commands right after common
+include makefiles/shutdown.mk
+include makefiles/startup.mk
+
 # Include all modular makefiles
 include makefiles/ansible/ansible.mk
 include makefiles/argo/install.mk
@@ -110,6 +114,7 @@ help: ## Show this help message
 	@echo "$(CYAN)Environment Variables:$(RESET) ENV, CLOUD, NAMESPACE, HOST"
 	@echo ""
 	@$(MAKE) --no-print-directory help-common
+	@$(MAKE) --no-print-directory help-sys
 	@echo ""
 	@$(MAKE) --no-print-directory help-terraform
 	@$(MAKE) --no-print-directory help-ansible
