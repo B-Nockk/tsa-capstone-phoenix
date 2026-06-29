@@ -1,0 +1,13 @@
+# helm/argocd/values-dev.yaml
+ingress:
+  enabled: true
+  className: nginx
+  host: argocd.dev.local
+  tls: false
+  extraAnnotations:
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
+

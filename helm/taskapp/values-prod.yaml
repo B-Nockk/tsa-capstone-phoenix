@@ -38,3 +38,7 @@ frontend:
 secrets:
   postgresPassword: ""  # Must be from external secret
   secretKey: ""         # Must be from external secret
+
+externalAccess:
+  host: taskapp.prod.local
+  port: 80

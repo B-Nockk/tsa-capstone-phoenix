@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: taskapp
+  namespace: argocd
+spec:
+  description: TaskApp Project
+  sourceRepos:
+  - https://github.com/ts-a-devops/capstone-phoenix
+  destinations:
+  - namespace: taskapp-*
+    server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  roles:
+  - name: developer
+    policies:
+    - p, proj:taskapp:developer, applications, get, taskapp-*, allow

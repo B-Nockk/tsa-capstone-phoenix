@@ -101,6 +101,11 @@ secrets:
 # Namespace
 namespace: taskapp
 
+externalAccess:
+  enabled: true
+  host: taskapp.local
+  port: 8080
+
 # Resource limits (global defaults)
 global:
   namespace: taskapp

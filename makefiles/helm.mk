@@ -30,6 +30,11 @@ POSTGRES_PORT          ?= 5432
 POSTGRES_USER          ?= taskapp_user
 POSTGRES_DB            ?= taskapp
 
+# ArgoCD Helm chart directory
+ARGOCD_HELM_DIR			?= helm/argocd
+ARGOCD_RELEASE_NAME		?= argocd-ingress
+ARGOCD_NAMESPACE		?= argocd
+
 # Construct URLs (internal ones used by app-test)
 BACKEND_HEALTH_URL     := http://$(BACKEND_INTERNAL_HOST):$(BACKEND_INTERNAL_PORT)/api/health
 FRONTEND_URL           := http://$(FRONTEND_INTERNAL_HOST):$(FRONTEND_INTERNAL_PORT)/
@@ -45,28 +50,31 @@ FRONTEND_EXTERNAL_URL  := http://$(FRONTEND_EXTERNAL_HOST):$(FRONTEND_EXTERNAL_P
 .PHONY: help-helm
 help-helm:
 	@echo "$(CYAN)Helm:$(RESET)"
-	@echo "  helm-deploy          Deploy/upgrade application via Helm"
-	@echo "  helm-deploy-cloud    Deploy to cloud with TLS"
-	@echo "  helm-rollback        Rollback application"
-	@echo "  helm-uninstall       Uninstall application"
-	@echo "  helm-status          Show deployment status"
-	@echo "  helm-history         Show release history"
-	@echo "  helm-lint            Lint Helm chart"
-	@echo "  helm-template        Render Helm templates"
-	@echo "  helm-dry-run         Dry run Helm deployment"
-	@echo "  app-test             Test application from inside cluster"
-	@echo "  test-external        Test application from outside cluster"
-	@echo "  app-logs             Show application logs"
-	@echo "  app-shell            Shell into backend pod"
-	@echo "  app-psql             Connect to PostgreSQL"
-	@echo "  show-test-urls       Show all test URLs"
+	@echo "  helm-deploy          	Deploy/upgrade application via Helm"
+	@echo "  helm-deploy-cloud    	Deploy to cloud with TLS"
+	@echo "  helm-rollback        	Rollback application"
+	@echo "  helm-uninstall       	Uninstall application"
+	@echo "  helm-status          	Show deployment status"
+	@echo "  helm-history         	Show release history"
+	@echo "  helm-lint            	Lint Helm chart"
+	@echo "  helm-template        	Render Helm templates"
+	@echo "  helm-dry-run         	Dry run Helm deployment"
+	@echo "  app-test             	Test application from inside cluster"
+	@echo "  test-external        	Test application from outside cluster"
+	@echo "  app-logs             	Show application logs"
+	@echo "  app-shell            	Shell into backend pod"
+	@echo "  app-psql             	Connect to PostgreSQL"
+	@echo "  show-test-urls       	Show all test URLs"
+	@echo "  helm-deploy-argocd   	Deploy/upgrade ArgoCD ingress via Helm"
+	@echo "  helm-uninstall-argocd 	Uninstall ArgoCD ingress"
+	@echo "  helm-status-argocd   	Show ArgoCD ingress status"
 	@echo ""
 	@echo "$(CYAN)Infrastructure:$(RESET)"
-	@echo "  install-ingress      Install ingress-nginx"
-	@echo "  uninstall-ingress    Uninstall ingress-nginx"
-	@echo "  install-cert-manager Install cert-manager"
+	@echo "  install-ingress      	Install ingress-nginx"
+	@echo "  uninstall-ingress    	Uninstall ingress-nginx"
+	@echo "  install-cert-manager 	Install cert-manager"
 	@echo "  uninstall-cert-manager Uninstall cert-manager"
-	@echo "  apply-cluster-issuer Apply ClusterIssuer"
+	@echo "  apply-cluster-issuer 	Apply ClusterIssuer"
 
 # ============================================
 # Repo Setup: Ingress Controller + Cert-Manager
@@ -116,6 +124,28 @@ check-cert: ## Check certificate status (requires HOST variable)
 	kubectl get certificate -n $(NAMESPACE)
 	@echo "$(YELLOW)Certificate detail:$(RESET)"
 	kubectl describe certificate -n $(NAMESPACE)
+
+# ============================================
+# App Secrets
+# ============================================
+
+.PHONY: helm-deploy-argocd
+helm-deploy-argocd: ## Deploy/upgrade ArgoCD ingress via Helm
+	@echo "$(GREEN)Deploying ArgoCD ingress...$(RESET)"
+	helm upgrade --install $(ARGOCD_RELEASE_NAME) $(ARGOCD_HELM_DIR) \
+		--namespace $(ARGOCD_NAMESPACE) --create-namespace
+	@echo "$(GREEN)✅ ArgoCD ingress deployed$(RESET)"
+
+.PHONY: helm-uninstall-argocd
+helm-uninstall-argocd: ## Uninstall ArgoCD ingress
+	@echo "$(RED)Uninstalling ArgoCD ingress...$(RESET)"
+	@helm uninstall $(ARGOCD_RELEASE_NAME) -n $(ARGOCD_NAMESPACE) || true
+	@echo "$(GREEN)✅ ArgoCD ingress uninstalled$(RESET)"
+
+.PHONY: helm-status-argocd
+helm-status-argocd: ## Show ArgoCD ingress status
+	@echo "$(YELLOW)📊 ArgoCD ingress status:$(RESET)"
+	@kubectl -n $(ARGOCD_NAMESPACE) get ingress
 
 # ============================================
 # App Secrets

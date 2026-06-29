@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: taskapp-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ts-a-devops/capstone-phoenix
+    targetRevision: main
+    path: helm/taskapp
+    helm:
+      valueFiles:
+        - values-prod.yaml
+      # Secrets injected via external secrets or environment
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: taskapp-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true

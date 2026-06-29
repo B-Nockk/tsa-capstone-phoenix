@@ -16,6 +16,8 @@ include makefiles/helm.mk
 include makefiles/gitops.mk
 include makefiles/monitoring.mk
 include makefiles/ci-cd.mk
+include makefiles/secrets.mk
+include makefiles/diagnostics.mk
 
 # ============================================
 # Full Deployment Pipelines
@@ -70,6 +72,22 @@ app-rollback: helm-rollback ## Rollback application (alias)
 
 .PHONY: app-uninstall
 app-uninstall: helm-uninstall ## Uninstall application (alias)
+
+# ============================================
+# secrets Commands
+# ============================================
+
+.PHONY: secrets-setup
+secrets-setup: secrets-install-controller secrets-generate secrets-inject-cluster
+	@echo "$(GREEN)✅ Secrets setup complete!$(RESET)"
+	@echo "$(YELLOW)Next: Commit gitops/sealed-secrets/$(ENV)/sealed-secret.yaml$(RESET)"
+
+.PHONY: secrets-rotate
+secrets-rotate:
+	@echo "$(YELLOW)🔄 Rotating secrets for $(ENV)...$(RESET)"
+	@rm -f .secrets/$(ENV).env
+	@$(MAKE) secrets-setup ENV=$(ENV)
+	@echo "$(GREEN)✅ Secrets rotated!$(RESET)"
 
 # ============================================
 # CI/CD Pipelines (Single Command)

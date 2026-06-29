@@ -96,6 +96,10 @@ help: ## Show this help message
 	@echo ""
 	@$(MAKE) help-cicd
 	@echo ""
+	@$(MAKE) help-secrets
+	@echo ""
+	@$(MAKE) help-diagnostics
+	@echo ""
 	@echo "$(YELLOW)Quick Start:$(RESET)"
 	@echo "  make local-up      Full local deployment"
 	@echo "  make cloud-up      Full cloud deployment"

@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: taskapp
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ts-a-devops/capstone-phoenix  # YOUR REPO
+    targetRevision: main
+    path: helm/taskapp  # Path to your Helm chart
+    helm:
+      valueFiles:
+        - values-${ENV}.yaml  # Environment-specific values
+      parameters:
+        - name: secrets.postgresPassword
+          value: ${POSTGRES_PASSWORD}  # From environment
+        - name: secrets.secretKey
+          value: ${SECRET_KEY}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: taskapp
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+  revisionHistoryLimit: 5

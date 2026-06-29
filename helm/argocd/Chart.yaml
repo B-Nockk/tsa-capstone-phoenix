@@ -1,0 +1,7 @@
+# helm/argocd/Chart.yaml
+apiVersion: v2
+name: argocd
+description: Custom resources for Argo CD ingress
+type: application
+version: 0.1.0
+appVersion: "v2.11.0"

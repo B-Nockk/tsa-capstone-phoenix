@@ -1,0 +1,6 @@
+{{- if .Values.ingress.enabled }}
+echo "Visit http{{ if .Values.ingress.tls }}s{{ end }}://{{ .Values.ingress.host }}/ to access the Argo CD UI"
+{{- else }}
+echo "Argo CD ingress is disabled. Use port-forward instead:"
+echo "kubectl -n {{ .Release.Namespace }} port-forward svc/argocd-server 9090:443"
+{{- end }}

@@ -1,0 +1,11 @@
+# helm/argocd/values.yaml
+ingress:
+  enabled: true
+  host: argocd.local
+  className: nginx
+  tls: false
+
+externalAccess:
+  enabled: true
+  host: argocd.local
+  port: 8080

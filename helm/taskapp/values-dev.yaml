@@ -40,3 +40,7 @@ secrets:
 
 httpRoute:
   enabled: false
+
+externalAccess:
+  host: taskapp.dev.local
+  port: 8080
