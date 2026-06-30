@@ -1,0 +1,20 @@
+{{- if .Values.ingress.tls }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: argocd-tls
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: argocd-tls
+  issuerRef:
+    name: {{ .Values.ingress.clusterIssuer }}
+    kind: ClusterIssuer
+  commonName: {{ .Values.ingress.host }}
+  dnsNames:
+  - {{ .Values.ingress.host }}
+  {{- if eq .Values.ingress.clusterIssuer "selfsigned-cluster-issuer" }}
+  isCA: false
+  duration: 8760h  # 1 year
+  renewBefore: 720h  # 30 days
+  {{- end }}
+{{- end }}

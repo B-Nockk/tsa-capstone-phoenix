@@ -2,7 +2,7 @@ appName: taskapp
 env: dev
 argocdNamespace: argocd
 projectName: taskapp
-repoURL: https://github.com/ts-a-devops/capstone-phoenix
+repoURL: https://github.com/B-Nockk/tsa-capstone-phoenix.git
 branch: main
 path: helm/taskapp
-targetNamespace: taskapp
+targetNamespace: taskapp-dev

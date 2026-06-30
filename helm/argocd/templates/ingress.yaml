@@ -5,6 +5,8 @@ kind: Ingress
 metadata:
   name: argocd-server-ingress
   namespace: argocd
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:

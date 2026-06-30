@@ -1,4 +1,3 @@
-# helm/taskapp/templates/certificate.yaml
 {{- if .Values.ingress.tls.enabled }}
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -10,11 +9,11 @@ spec:
   issuerRef:
     name: {{ .Values.ingress.tls.issuer }}
     kind: ClusterIssuer
-  commonName: {{ .Values.ingress.hosts[0].host }}
+  commonName: {{ (index .Values.ingress.hosts 0).host }}
   dnsNames:
-    {{- range .Values.ingress.hosts }}
+  {{- range .Values.ingress.hosts }}
     - {{ .host }}
-    {{- end }}
+  {{- end }}
   {{- if eq .Values.ingress.tls.issuer "selfsigned-cluster-issuer" }}
   # Self-signed cert specifics
   isCA: false

@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/ts-a-devops/capstone-phoenix  # YOUR REPO
+    repoURL: https://github.com/B-Nockk/tsa-capstone-phoenix.git  # YOUR REPO
     targetRevision: main
     path: helm/taskapp  # Path to your Helm chart
     helm:

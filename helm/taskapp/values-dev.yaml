@@ -47,7 +47,7 @@ httpRoute:
   enabled: false
 
 externalAccess:
-  host: taskapp.dev.local
+  host: taskapp.local
   port: 8080
 
 ingress:

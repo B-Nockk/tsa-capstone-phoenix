@@ -6,7 +6,7 @@ metadata:
 spec:
   description: TaskApp Project
   sourceRepos:
-  - https://github.com/ts-a-devops/capstone-phoenix
+  - https://github.com/B-Nockk/tsa-capstone-phoenix.git
   destinations:
   - namespace: taskapp-*
     server: https://kubernetes.default.svc
