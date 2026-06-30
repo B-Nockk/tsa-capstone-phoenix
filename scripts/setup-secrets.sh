@@ -6,42 +6,81 @@ set -e
 # Generates, encrypts, and injects secrets
 # ============================================
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-
 # Colors
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
-# Environment
-ENV=${1:-dev}
-SECRETS_DIR="$ROOT_DIR/.secrets"
-ENV_FILE="$SECRETS_DIR/$ENV.env"
-SEALED_NAMESPACE="sealed-secrets"
+# ============================================
+# 1. Configuration & Overridable Variables
+# ============================================
 
-echo -e "${GREEN}🔐 Secrets Setup for $ENV environment${NC}"
+# Environment (passed as first argument, defaults to 'dev')
+ENV=${1:-dev}
+
+# Directories
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="${ROOT_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+SECRETS_DIR="${SECRETS_DIR:-$ROOT_DIR/.secrets}"
+SEALED_DIR="${SEALED_DIR:-$ROOT_DIR/gitops/sealed-secrets/$ENV}"
+
+# Kubernetes Namespaces & Names (Overridable via Environment)
+APP_NAMESPACE="${APP_NAMESPACE:-taskapp-${ENV}}"
+SECRET_NAME="${SECRET_NAME:-taskapp-secrets}"
+SEALED_NAMESPACE="${SEALED_NAMESPACE:-sealed-secrets}"
+SEALED_CONTROLLER_NAME="${SEALED_CONTROLLER_NAME:-sealed-secrets}" # Bitnami Helm chart default
+
+# Helm Repo
+SEALED_SECRETS_REPO="${SEALED_SECRETS_REPO:-https://bitnami.github.io/sealed-secrets}"
+
+# Automation flag (set to 'true' to skip interactive prompts, useful for CI/Make)
+AUTO_INJECT="${AUTO_INJECT:-false}"
+
+ENV_FILE="$SECRETS_DIR/$ENV.env"
 
 # ============================================
-# 1. Load or Generate Secrets
+# 2. Feedback: Show Configuration
+# ============================================
+
+echo -e "${CYAN}========================================${NC}"
+echo -e "${CYAN}🔐 Secrets Setup Configuration${NC}"
+echo -e "${CYAN}========================================${NC}"
+echo -e "Environment:       ${GREEN}$ENV${NC}"
+echo -e "Root Directory:    ${YELLOW}$ROOT_DIR${NC}"
+echo -e "Secrets File:      ${YELLOW}$ENV_FILE${NC}"
+echo -e "App Namespace:     ${GREEN}$APP_NAMESPACE${NC}"
+echo -e "Secret Name:       ${GREEN}$SECRET_NAME${NC}"
+echo -e "Controller NS:     ${GREEN}$SEALED_NAMESPACE${NC}"
+echo -e "Controller Name:   ${GREEN}$SEALED_CONTROLLER_NAME${NC}"
+echo -e "${CYAN}========================================${NC}"
+echo ""
+
+# ============================================
+# 3. Load or Generate Secrets
 # ============================================
 
 mkdir -p "$SECRETS_DIR"
 
-if [ -f "$ENV_FILE" ]; then
-    echo -e "${YELLOW}⚠️  Secrets file exists: $ENV_FILE${NC}"
-    echo -e "${YELLOW}Using existing secrets...${NC}"
-    source "$ENV_FILE"
-else
-    echo -e "${YELLOW}📝 Generating new secrets for $ENV...${NC}"
+# Check if we should generate or use existing
+# We only generate POSTGRES_PASSWORD and SECRET_KEY if they aren't already in the environment
+if [ -z "$POSTGRES_PASSWORD" ] || [ -z "$SECRET_KEY" ]; then
+    if [ -f "$ENV_FILE" ]; then
+        echo -e "${YELLOW}⚠️  Secrets file exists: $ENV_FILE${NC}"
+        echo -e "${YELLOW}Loading existing secrets...${NC}"
+        set -a
+        source "$ENV_FILE"
+        set +a
+    else
+        echo -e "${YELLOW}📝 Generating new secrets for $ENV...${NC}"
 
-    # Generate random passwords
-    POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
-    SECRET_KEY=$(openssl rand -base64 32 | tr -d '\n')
+        # Generate random passwords
+        export POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
+        export SECRET_KEY=$(openssl rand -base64 32 | tr -d '\n')
 
-    # Write to file
-    cat > "$ENV_FILE" << EOF
+        # Write to file
+        cat > "$ENV_FILE" << EOF
 # Auto-generated secrets for $ENV
 # Generated on: $(date)
 
@@ -67,32 +106,29 @@ ARGOCD_PASSWORD=${ARGOCD_PASSWORD:-CHANGE_ME}
 GRAFANA_PASSWORD=${GRAFANA_PASSWORD:-CHANGE_ME}
 EOF
 
-    echo -e "${GREEN}✅ Secrets generated at $ENV_FILE${NC}"
-    echo -e "${YELLOW}⚠️  Edit this file to add real credentials!${NC}"
+        echo -e "${GREEN}✅ Secrets generated at $ENV_FILE${NC}"
+        echo -e "${YELLOW}⚠️  Edit this file to add real credentials!${NC}"
+    fi
+else
+    echo -e "${GREEN}✅ Using secrets already loaded in environment${NC}"
 fi
 
-# ============================================
-# 2. Export Secrets for Current Shell
-# ============================================
-
-set -a
-source "$ENV_FILE"
-set +a
-
-echo -e "${GREEN}✅ Secrets loaded into environment${NC}"
+# Ensure they are exported for the rest of the script
+export POSTGRES_PASSWORD
+export SECRET_KEY
 
 # ============================================
-# 3. Create SealedSecret for GitOps
+# 4. Create SealedSecret for GitOps
 # ============================================
 
 echo -e "${YELLOW}🔒 Creating SealedSecret for $ENV...${NC}"
 
 # Check if sealed-secrets controller is installed
 if ! kubectl get namespace "$SEALED_NAMESPACE" &>/dev/null; then
-    echo -e "${RED}❌ SealedSecrets controller not found!${NC}"
+    echo -e "${RED}❌ SealedSecrets controller not found in namespace '$SEALED_NAMESPACE'!${NC}"
     echo -e "${YELLOW}Installing SealedSecrets...${NC}"
 
-    helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets --force-update
+    helm repo add sealed-secrets "$SEALED_SECRETS_REPO" --force-update
     helm upgrade --install sealed-secrets sealed-secrets/sealed-secrets \
         --namespace "$SEALED_NAMESPACE" \
         --create-namespace \
@@ -102,17 +138,17 @@ if ! kubectl get namespace "$SEALED_NAMESPACE" &>/dev/null; then
 fi
 
 # Create the sealed secret
-SEALED_DIR="$ROOT_DIR/gitops/sealed-secrets/$ENV"
 mkdir -p "$SEALED_DIR"
 
 # Generate sealed secret from environment
-kubectl create secret generic taskapp-secrets \
-    --namespace taskapp-${ENV} \
+kubectl create secret generic "$SECRET_NAME" \
+    --namespace "$APP_NAMESPACE" \
     --dry-run=client \
     -o yaml \
     --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
     --from-literal=SECRET_KEY="$SECRET_KEY" \
     | kubeseal \
+        --controller-name="$SEALED_CONTROLLER_NAME" \
         --controller-namespace="$SEALED_NAMESPACE" \
         --format yaml \
     > "$SEALED_DIR/sealed-secret.yaml"
@@ -120,26 +156,40 @@ kubectl create secret generic taskapp-secrets \
 echo -e "${GREEN}✅ SealedSecret created at: $SEALED_DIR/sealed-secret.yaml${NC}"
 
 # ============================================
-# 4. Inject Secrets to Cluster (Optional)
+# 5. Inject Secrets to Cluster (Optional)
 # ============================================
 
-echo -e "${YELLOW}🔑 Inject secrets to cluster? (y/N)${NC}"
-read -r -n 1 response
-echo
-if [[ "$response" =~ ^[Yy]$ ]]; then
-    echo -e "${YELLOW}Injecting secrets to cluster...${NC}"
+if [ "$AUTO_INJECT" = "true" ]; then
+    echo -e "${YELLOW}🔑 AUTO_INJECT=true: Injecting secrets to cluster automatically...${NC}"
 
     # Ensure namespace exists
-    kubectl create namespace taskapp-${ENV} --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create namespace "$APP_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 
     # Apply the sealed secret
     kubectl apply -f "$SEALED_DIR/sealed-secret.yaml"
 
     echo -e "${GREEN}✅ Secrets injected to cluster${NC}"
+else
+    echo -e "${YELLOW}🔑 Inject secrets to cluster? (y/N)${NC}"
+    read -r -n 1 response
+    echo
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+        echo -e "${YELLOW}Injecting secrets to cluster...${NC}"
+
+        # Ensure namespace exists
+        kubectl create namespace "$APP_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+
+        # Apply the sealed secret
+        kubectl apply -f "$SEALED_DIR/sealed-secret.yaml"
+
+        echo -e "${GREEN}✅ Secrets injected to cluster${NC}"
+    else
+        echo -e "${YELLOW}⏭️  Skipping cluster injection.${NC}"
+    fi
 fi
 
 # ============================================
-# 5. Output Summary
+# 6. Output Summary
 # ============================================
 
 echo -e "\n${GREEN}========================================${NC}"
@@ -152,6 +202,6 @@ echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo "  1. Edit $ENV_FILE if needed"
 echo "  2. Commit gitops/sealed-secrets/$ENV/sealed-secret.yaml"
-echo "  3. Run: make gitops-apply ENV=$ENV"
+echo "  3. Run: make argo-apply ENV=$ENV"
 echo ""
 echo -e "${YELLOW}⚠️  Remember to keep $ENV_FILE gitignored!${NC}"

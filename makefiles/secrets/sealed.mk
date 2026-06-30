@@ -19,7 +19,14 @@ help-secrets:
 .PHONY: sec-generate
 sec-generate:
 	@chmod +x $(SECRETS_SCRIPT) $(INJECT_SCRIPT) 2>/dev/null || true
-	@bash $(SECRETS_SCRIPT) $(ENV)
+	@echo "$(YELLOW)🔐 Generating secrets with Make variables...$(RESET)"
+	@# Export Make variables so the bash script inherits them perfectly
+	@APP_NAMESPACE=$(NAMESPACE) \
+	 SECRET_NAME=$(PROJECT_NAME)-secrets \
+	 SEALED_NAMESPACE=$(SEALED_SECRETS_NS) \
+	 SEALED_CONTROLLER_NAME=$(SEALED_SECRETS_NAME) \
+	 AUTO_INJECT=true \
+	 bash $(SECRETS_SCRIPT) $(ENV)
 
 .PHONY: sec-inject-gh
 sec-inject-gh:
