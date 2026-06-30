@@ -19,9 +19,9 @@ argo-install:
 	@# --- OBSERVABILITY UX IMPROVEMENT ---
 	@echo ""
 	@echo "$(YELLOW)⏳ Waiting for ArgoCD pods to become ready...$(RESET)"
-	@echo "$(CYAN}   💡 This may take 1-3 minutes. ArgoCD is pulling 7 Docker images.$(RESET)"
-	@echo "$(CYAN}   📦 Pods: argocd-server, argocd-repo-server, argocd-application-controller, redis, dex...$(RESET)"
-	@echo "$(CYAN}   🌐 Tip: Open a new terminal and run 'kubectl get pods -n argocd -w' to watch them start.$(RESET)"
+	@echo "$(CYAN)   💡 This may take 1-3 minutes. ArgoCD is pulling 7 Docker images.$(RESET)"
+	@echo "$(CYAN)   📦 Pods: argocd-server, argocd-repo-server, argocd-application-controller, redis, dex...$(RESET)"
+	@echo "$(CYAN)   🌐 Tip: Open a new terminal and run 'kubectl get pods -n argocd -w' to watch them start.$(RESET)"
 	@echo ""
 	@# ------------------------------------
 
