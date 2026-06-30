@@ -1,0 +1,20 @@
+# .gh_vars
+ENV=dev
+CLOUD=local
+NAMESPACE=taskapp-dev
+DOMAIN_NAME=taskapp.local
+ARGOCD_DOMAIN=argocd.local
+CERT_EMAIL=devops@tsa.edu
+GITOPS_REPO_URL=https://github.com/B-Nockk/tsa-capstone-phoenix.git
+GITOPS_TARGET_REVISION=main
+ARGOCD_NAMESPACE=argocd
+
+# Terraform Vars
+TF_VAR_aws_region=us-east-1
+TF_VAR_environment=dev
+TF_VAR_project_name=tsa-capstone
+TF_VAR_instance_type=t3.micro
+# Notice how it perfectly handles JSON objects without breaking!
+TF_VAR_node_count={"control_plane": 1, "workers": 2}
+TF_VAR_vpc_cidr=10.0.0.0/16
+TF_VAR_allowed_ssh_ips=["154.118.24.60/32"]

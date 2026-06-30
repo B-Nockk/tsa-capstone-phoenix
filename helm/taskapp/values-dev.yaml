@@ -50,6 +50,9 @@ externalAccess:
   host: taskapp.local
   port: 8080
 
+networkPolicy:
+  enabled: true
+
 ingress:
   enabled: true
   className: nginx

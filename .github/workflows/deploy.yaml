@@ -1,0 +1,111 @@
+name: Deploy TaskApp (GitOps)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev, prod]
+      provision_infra:
+        description: 'Provision infrastructure (Terraform + Ansible)?'
+        required: true
+        default: true
+        type: boolean
+      deploy_app:
+        description: 'Deploy application via ArgoCD?'
+        required: true
+        default: true
+        type: boolean
+
+env:
+  ENV: ${{ github.event.inputs.environment || 'dev' }}
+  CLOUD: aws
+  NAMESPACE: taskapp-${{ github.event.inputs.environment || 'dev' }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup CI Dependencies
+        run: make setup-ci-deps
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.TF_VAR_AWS_REGION || 'us-east-1' }}
+
+      - name: Setup SSH Key for CI
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Provision Infrastructure (Terraform + Ansible)
+        if: github.event.inputs.provision_infra != 'false'
+        run: |
+          make infra-apply ENV=${{ env.ENV }} \
+            TF_VAR_ssh_public_key_content="${{ secrets.SSH_PUBLIC_KEY }}"
+          make ansible-run ENV=${{ env.ENV }}
+
+      - name: Fetch Kubeconfig
+        if: github.event.inputs.provision_infra != 'false'
+        run: |
+          make infra-kubeconfig ENV=${{ env.ENV }}
+          mkdir -p ~/.kube
+          cp ./kubeconfig-${{ env.ENV }}.yaml ~/.kube/config
+          kubectl get nodes
+
+      - name: Setup Platform (Ingress, Cert-Manager, ArgoCD)
+        run: |
+          make sys-setup ARGOCD_RESET_PASSWORD=false ENV=${{ env.ENV }} CLOUD=aws
+
+      - name: Update DuckDNS (If using ephemeral IPs)
+        env:
+          DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
+          DUCKDNS_DOMAIN: ${{ vars.DUCKDNS_DOMAIN }}
+        run: |
+          if [ -n "$DUCKDNS_TOKEN" ] && [ -n "$DUCKDNS_DOMAIN" ]; then
+            IP=$(curl -s https://checkip.amazonaws.com)
+            echo "Updating DuckDNS $DUCKDNS_DOMAIN to $IP"
+            curl -s "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAIN}&token=${DUCKDNS_TOKEN}&ip=${IP}"
+            # Override the HOST variable for subsequent steps
+            echo "HOST=${DUCKDNS_DOMAIN}.duckdns.org" >> $GITHUB_ENV
+          else
+            echo "DuckDNS not configured, using default HOST"
+          fi
+
+      - name: Deploy Application via ArgoCD (GitOps)
+        if: github.event.inputs.deploy_app != 'false'
+        run: |
+          # Dynamically inject the correct domain/IP into the ArgoCD manifest
+          sed -i "s|repoURL:.*|repoURL: ${{ github.server_url }}/${{ github.repository }}|g" gitops/application.${{ env.ENV }}.yaml
+          make argo-deploy ENV=${{ env.ENV }} HOST=${{ env.HOST }}
+
+      - name: Run Tests
+        if: github.event.inputs.deploy_app != 'false'
+        run: make app-test ENV=${{ env.ENV }}
+
+      - name: Generate Step Summary
+        if: always()
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | ${{ env.ENV }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Cloud** | ${{ env.CLOUD }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Namespace** | ${{ env.NAMESPACE }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Host/Domain** | ${{ env.HOST || 'Not Set' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Infra Provisioned** | ${{ github.event.inputs.provision_infra || 'true (push)' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **App Deployed** | ${{ github.event.inputs.deploy_app || 'true (push)' }} |" >> $GITHUB_STEP_SUMMARY

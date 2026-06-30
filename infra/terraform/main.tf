@@ -46,16 +46,33 @@ resource "local_file" "ssh_public" {
 }
 
 # Import the SSH key to AWS
-resource "aws_key_pair" "capstone" {
-  key_name   = var.ssh_key_name
-  public_key = var.generate_ssh_key ? tls_private_key.ssh[0].public_key_openssh : file(var.ssh_public_key_path)
+# ============================================
+# SSH KEY MANAGEMENT (Idempotent for CI/CD)
+# ============================================
+# We assume the key is generated locally or by CI via `make ssh-key-setup`.
+# Instead of Terraform creating the key pair (which fails if it already exists in AWS),
+# we use the AWS CLI to import it. The `|| true` makes it perfectly idempotent.
 
-  tags = {
-    Name        = "${var.project_name}-${var.environment}-key"
-    Environment = var.environment
-    Project     = var.project_name
+resource "null_resource" "import_ssh_key_to_aws" {
+  provisioner "local-exec" {
+    command = <<-EOT
+      aws ec2 import-key-pair \
+        --key-name ${var.ssh_key_name} \
+        --public-key-material fileb://${var.ssh_public_key_path} \
+        --region ${var.aws_region} \
+        --tag-specifications 'ResourceType=key-pair,Tags=[{Key=Name,Value=${var.project_name}-${var.environment}-key},{Key=Environment,Value=${var.environment}}]' \
+      || true
+    EOT
+  }
+
+  # Ensure the public key file exists before trying to import
+  provisioner "local-exec" {
+    command = "test -f ${var.ssh_public_key_path} || (echo '❌ Public key not found at ${var.ssh_public_key_path}. Run: make ssh-key-setup' && exit 1)"
   }
 }
+
+# Remove the old `resource "aws_key_pair" "capstone"` block entirely.
+# Update the module.compute to use var.ssh_key_name directly instead of aws_key_pair.capstone.key_name
 
 # ============================================
 # NETWORK MODULE
@@ -100,7 +117,7 @@ module "compute" {
   node_count        = var.node_count
   public_subnet_ids = module.network.public_subnet_ids
   security_group_id = module.security.security_group_id
-  ssh_key_name      = aws_key_pair.capstone.key_name
+  ssh_key_name      = var.ssh_key_name
   k3s_version       = var.k3s_version
   aws_region        = var.aws_region
 }

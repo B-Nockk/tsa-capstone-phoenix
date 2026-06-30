@@ -44,6 +44,9 @@ externalAccess:
   host: taskapp.prod.local
   port: 80
 
+networkPolicy:
+  enabled: true
+
 # helm/taskapp/values-prod.yaml
 ingress:
   enabled: true

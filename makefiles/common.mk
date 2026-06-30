@@ -28,6 +28,10 @@ LOGS_DIR         	?= logs
 LOCAL_SECRETS    	:= $(SECRETS_DIR)/$(ENV).env
 HELM_VALUES_FILE 	:= $(HELM_DIR)/values-$(ENV).yaml
 
+# Add these variables to common.mk if not already there
+SSH_PRIVATE_KEY_PATH ?= ~/.ssh/tsa-capstone/tsa-capstone-key
+SSH_PUBLIC_KEY_PATH  ?= ~/.ssh/tsa-capstone/tsa-capstone-key.pub
+
 define check_cmd
 	@command -v $(1) >/dev/null 2>&1 || { echo "$(RED)❌ $(1) not found$(RESET)"; exit 1; }
 endef
@@ -60,3 +64,41 @@ version: ## Show version information
 setup: ## Complete project setup (create directories)
 	@mkdir -p $(SECRETS_DIR) $(LOGS_DIR)
 	@echo "$(GREEN)✓ Project structure created$(RESET)"
+
+.PHONY: ssh-key-setup
+ssh-key-setup: ## Generate SSH key if it doesn't exist (no passphrase for CI)
+	@mkdir -p $(dir $(SSH_PRIVATE_KEY_PATH))
+	@if [ ! -f "$(SSH_PRIVATE_KEY_PATH)" ]; then \
+		echo "$(YELLOW)🔑 Generating SSH key at $(SSH_PRIVATE_KEY_PATH)...$(RESET)"; \
+		ssh-keygen -t ed25519 -f $(SSH_PRIVATE_KEY_PATH) -N ""; \
+		echo "$(GREEN)✅ SSH key generated (No passphrase for CI compatibility)$(RESET)"; \
+	else \
+		echo "$(GREEN)✅ SSH key already exists$(RESET)"; \
+	fi
+
+.PHONY: setup-ci-deps
+setup-ci-deps: ## Install all required tools for CI/CD runners (Ubuntu)
+	@echo "$(GREEN)📦 Installing CI dependencies...$(RESET)"
+	@sudo apt-get update -qq
+	@sudo apt-get install -y -qq apache2-utils jq unzip
+
+	@# kubectl
+	@echo "  Installing kubectl..."
+	@curl -sLO "https://dl.k8s.io/release/$$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+	@sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl
+
+	@# helm
+	@echo "  Installing helm..."
+	@curl -sL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+	@# kubeseal
+	@echo "  Installing kubeseal..."
+	@curl -sL https://github.com/bitnami/sealed-secrets/releases/download/v0.27.1/kubeseal-0.27.1-linux-amd64.tar.gz | tar xz -C /tmp
+	@sudo install -m 755 /tmp/kubeseal /usr/local/bin/kubeseal && rm /tmp/kubeseal
+
+	@# argocd cli
+	@echo "  Installing argocd cli..."
+	@curl -sSL -o /tmp/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+	@sudo install -m 555 /tmp/argocd /usr/local/bin/argocd && rm /tmp/argocd
+
+	@echo "$(GREEN)✅ All CI dependencies installed$(RESET)"

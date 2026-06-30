@@ -14,6 +14,12 @@ variable "ssh_public_key_path" {
   default     = "~/.ssh/tsa-capstone/tsa-capstone-key.pub"
 }
 
+variable "ssh_public_key_content" {
+  description = "The actual public key string (optional, overrides file path)"
+  type        = string
+  default     = ""
+}
+
 variable "ssh_private_key_path" {
   description = "Path to the SSH private key file"
   type        = string
