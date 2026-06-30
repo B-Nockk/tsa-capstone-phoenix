@@ -7,6 +7,7 @@ SEALED_SECRETS_REPO ?= https://bitnami.github.io/sealed-secrets
 SEALED_SECRETS_NS   ?= sealed-secrets
 SEALED_SECRETS_NAME ?= sealed-secrets
 SEALED_SECRET_PATH  ?= gitops/sealed-secrets/$(ENV)/sealed-secret.yaml
+HELM_TIMEOUT		?= 10m
 
 .PHONY: help-secrets
 help-secrets:
@@ -38,8 +39,22 @@ sec-inject-cluster:
 
 .PHONY: sec-install-controller
 sec-install-controller:
+	@echo "$(GREEN)🔒 Installing SealedSecrets controller...$(RESET)"
 	@helm repo add $(SEALED_SECRETS_NAME) $(SEALED_SECRETS_REPO) --force-update
-	@helm upgrade --install $(SEALED_SECRETS_NAME) $(SEALED_SECRETS_NAME)/sealed-secrets --namespace $(SEALED_SECRETS_NS) --create-namespace --wait
+
+	@# --- OBSERVABILITY UX IMPROVEMENT ---
+	@echo "$(YELLOW)⏳ Pulling image and waiting for SealedSecrets pod to be ready...$(RESET)"
+	@echo "$(CYAN)   💡 This may take 2-5 minutes. Helm is waiting for the pod to report 'Ready'.$(RESET)"
+	@echo "$(CYAN)   🌐 Tip: Open a new terminal and run 'kubectl get pods -n sealed-secrets -w' to watch it.$(RESET)"
+	@# ------------------------------------
+
+	@helm upgrade --install $(SEALED_SECRETS_NAME) $(SEALED_SECRETS_NAME)/sealed-secrets \
+		--namespace $(SEALED_SECRETS_NS) \
+		--create-namespace \
+		--wait \
+		--timeout $(HELM_TIMEOUT)
+
+	@echo "$(GREEN)✅ SealedSecrets controller installed$(RESET)"
 
 # ============================================
 # Secrets Status
