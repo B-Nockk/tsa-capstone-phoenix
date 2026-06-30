@@ -1,5 +1,6 @@
+# helm/taskapp/values-prod.yaml
 # Production values
-namespace: taskapp
+namespace: taskapp-prod
 
 replicaCount:
   backend: 3
@@ -42,3 +43,28 @@ secrets:
 externalAccess:
   host: taskapp.prod.local
   port: 80
+
+# helm/taskapp/values-prod.yaml
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: taskapp.example.com  # Will be overridden via --set
+      paths:
+        - path: /api
+          pathType: Prefix
+          backend:
+            service:
+              name: backend
+              port:
+                number: 5000
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: frontend
+              port:
+                number: 80
+  tls:
+    enabled: true
+    issuer: letsencrypt-prod

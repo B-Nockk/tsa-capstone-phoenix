@@ -8,25 +8,25 @@ BLUE   := $(shell tput -Txterm setaf 4 2>/dev/null || echo "")
 CYAN   := $(shell tput -Txterm setaf 6 2>/dev/null || echo "")
 RESET  := $(shell tput -Txterm sgr0 2>/dev/null || echo "")
 
-ENV              ?= dev
-CLOUD            ?= local
-HOST             ?= taskapp.local
-NAMESPACE        ?= taskapp
-PROJECT_NAME     ?= taskapp
-CI               ?= false
+ENV              	?= dev
+CLOUD            	?= local
+HOST             	?= taskapp.local
+NAMESPACE 		 	?= taskapp-$(ENV)
+PROJECT_NAME     	?= taskapp
+CI               	?= false
 
-ROOT_DIR         := $(shell pwd)
-INFRA_DIR        ?= infra
-TERRAFORM_DIR    ?= $(INFRA_DIR)/terraform
-ANSIBLE_DIR      ?= $(INFRA_DIR)/ansible
-MANIFESTS_DIR    ?= manifests
-HELM_DIR         ?= helm/taskapp
-GITOPS_DIR       ?= gitops
-SECRETS_DIR      ?= .secrets
-LOGS_DIR         ?= logs
+ROOT_DIR         	:= $(shell pwd)
+INFRA_DIR        	?= infra
+TERRAFORM_DIR    	?= $(INFRA_DIR)/terraform
+ANSIBLE_DIR      	?= $(INFRA_DIR)/ansible
+MANIFESTS_DIR    	?= manifests
+HELM_DIR         	?= helm/taskapp
+GITOPS_DIR       	?= gitops
+SECRETS_DIR      	?= .secrets
+LOGS_DIR         	?= logs
 
-LOCAL_SECRETS    := $(SECRETS_DIR)/$(ENV).env
-HELM_VALUES_FILE := $(HELM_DIR)/values-$(ENV).yaml
+LOCAL_SECRETS    	:= $(SECRETS_DIR)/$(ENV).env
+HELM_VALUES_FILE 	:= $(HELM_DIR)/values-$(ENV).yaml
 
 define check_cmd
 	@command -v $(1) >/dev/null 2>&1 || { echo "$(RED)❌ $(1) not found$(RESET)"; exit 1; }

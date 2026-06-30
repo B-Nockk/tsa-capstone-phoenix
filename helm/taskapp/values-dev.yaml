@@ -1,5 +1,6 @@
+# helm/taskapp/values-dev.yaml
 # Development values
-namespace: taskapp
+namespace: taskapp-dev
 
 images:
   backend:
@@ -35,8 +36,12 @@ backend:
       cpu: "200m"
 
 secrets:
+  enabled: true # Enables secrets.yaml for local Helm deploys
   postgresPassword: "dev_password_change_me"
   secretKey: "dev_secret_key_change_me"
+
+sealedSecrets:
+  enabled: false #  Disables sealedsecret.yaml to prevent conflicts
 
 httpRoute:
   enabled: false
@@ -44,3 +49,27 @@ httpRoute:
 externalAccess:
   host: taskapp.dev.local
   port: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: taskapp.local
+      paths:
+        - path: /api
+          pathType: Prefix
+          backend:
+            service:
+              name: backend
+              port:
+                number: 5000
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: frontend
+              port:
+                number: 80
+  tls:
+    enabled: true
+    issuer: selfsigned-cluster-issuer

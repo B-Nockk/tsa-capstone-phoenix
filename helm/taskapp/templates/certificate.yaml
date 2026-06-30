@@ -1,0 +1,24 @@
+# helm/taskapp/templates/certificate.yaml
+{{- if .Values.ingress.tls.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "taskapp.fullname" . }}-tls
+  namespace: {{ .Values.namespace }}
+spec:
+  secretName: taskapp-tls
+  issuerRef:
+    name: {{ .Values.ingress.tls.issuer }}
+    kind: ClusterIssuer
+  commonName: {{ .Values.ingress.hosts[0].host }}
+  dnsNames:
+    {{- range .Values.ingress.hosts }}
+    - {{ .host }}
+    {{- end }}
+  {{- if eq .Values.ingress.tls.issuer "selfsigned-cluster-issuer" }}
+  # Self-signed cert specifics
+  isCA: false
+  duration: 8760h  # 1 year
+  renewBefore: 720h  # 30 days
+  {{- end }}
+{{- end }}
