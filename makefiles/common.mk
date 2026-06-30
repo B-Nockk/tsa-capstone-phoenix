@@ -49,6 +49,7 @@ check-tools: ## Check if required tools are installed
 	$(call check_cmd,helm)
 	$(call check_cmd,k3d)
 	$(call check_cmd,kubeseal)
+	$(call check_cmd,htpasswd)
 	@echo "$(GREEN)✅ All tools installed$(RESET)"
 
 .PHONY: version
