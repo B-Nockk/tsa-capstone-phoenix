@@ -23,7 +23,21 @@ k8s-create-local: ## Create local k3d cluster
 
 .PHONY: k8s-delete-local
 k8s-delete-local: ## Delete local k3d cluster
-	@k3d cluster delete $(K3D_CLUSTER_NAME) 2>/dev/null || true
+	@echo "$(RED)💥 Deleting local k3d cluster...$(RESET)"
+	@CURRENT_CTX=$$(kubectl config current-context 2>/dev/null); \
+	if [ "$$CURRENT_CTX" != "k3d-$(K3D_CLUSTER_NAME)" ]; then \
+		echo "$(YELLOW)⚠️  Warning: kubectl is currently pointing to '$$CURRENT_CTX', not 'k3d-$(K3D_CLUSTER_NAME)'$(RESET)"; \
+		echo "$(YELLOW)   Are you sure you are trying to delete the right cluster?$(RESET)"; \
+	fi
+	@if k3d cluster list | grep -q "$(K3D_CLUSTER_NAME)"; then \
+		echo "$(GREEN)🗑️  Found k3d cluster '$(K3D_CLUSTER_NAME)'. Deleting...$(RESET)"; \
+		k3d cluster delete $(K3D_CLUSTER_NAME); \
+		echo "$(GREEN)✅ k3d cluster deleted$(RESET)"; \
+	else \
+		echo "$(RED)❌ k3d could not find a cluster named '$(K3D_CLUSTER_NAME)'$(RESET)"; \
+		echo "$(YELLOW)   If your cluster is still running, check your context with: kubectl config current-context$(RESET)"; \
+		echo "$(YELLOW)   Or list docker containers with: docker ps$(RESET)"; \
+	fi
 
 .PHONY: k8s-context-cloud
 k8s-context-cloud: ## Switch to cloud cluster context

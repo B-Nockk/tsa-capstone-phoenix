@@ -6,12 +6,15 @@
 sys-setup: setup ## Complete project setup (uses common setup for dirs first)
 	@echo "$(GREEN)🔧 Setting up full project stack...$(RESET)"
 	@$(MAKE) check-tools
-	@$(MAKE) sec-install-controller
-	@$(MAKE) sec-generate ENV=$(ENV)
+	@# 1. Create the cluster first!
 	@$(MAKE) k8s-create
+	@# 2. Install core infrastructure components
 	@$(MAKE) k8s-ingress-install
 	@$(MAKE) k8s-cert-install
 	@$(MAKE) k8s-issuer-apply-retry
+	@# 3. Install cluster-dependent tools (Sealed Secrets, ArgoCD)
+	@$(MAKE) sec-install-controller
+	@$(MAKE) sec-generate ENV=$(ENV)
 	@$(MAKE) argo-install
 	@$(MAKE) argo-reset PASSWORD=ArgoCD123
 	@echo "$(GREEN)✅ Setup complete!$(RESET)"
