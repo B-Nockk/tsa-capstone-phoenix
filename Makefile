@@ -114,7 +114,9 @@ help: ## Show this help message
 	@echo "$(CYAN)Environment Variables:$(RESET) ENV, CLOUD, NAMESPACE, HOST"
 	@echo ""
 	@$(MAKE) --no-print-directory help-common
-	@$(MAKE) --no-print-directory help-sys
+	@echo ""
+	@$(MAKE) --no-print-directory help-sys-startup
+	@$(MAKE) --no-print-directory help-sys-shutdown
 	@echo ""
 	@$(MAKE) --no-print-directory help-terraform
 	@$(MAKE) --no-print-directory help-ansible

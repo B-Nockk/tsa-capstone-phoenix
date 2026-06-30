@@ -2,15 +2,12 @@
 # shutdown.mk - System-wide Shutdown & Cleanup
 # ============================================
 
-.PHONY: help-sys
-help-sys:
-	@echo "$(CYAN)System Lifecycle:$(RESET)"
+.PHONY: help-sys-shutdown
+help-sys-shutdown:
+	@echo "$(CYAN)System Shutdown:$(RESET)"
 	@echo "  sys-shutdown          Graceful shutdown (Helm uninstall -> k3d delete)"
 	@echo "  sys-apps-uninstall    Uninstall all applications via Helm"
 	@echo "  sys-clean             Full cleanup (shutdown + remove generated files)"
-	@echo "  sys-setup             Complete project setup (cluster + tools + argo)"
-	@echo "  sys-quick-start       Quick start (cluster + app only)"
-	@echo "  sys-fresh-start       Complete fresh start (full cleanup + setup)"
 	@echo ""
 	@echo "$(RED)⚠️  Emergency / Force Commands:$(RESET)"
 	@echo "  argo-nuke             Force kill stuck ArgoCD namespace (bypasses finalizers)"
