@@ -1,8 +1,14 @@
 # ============================================
 # secrets/sealed.mk - Secrets Management
 # ============================================
-SECRETS_SCRIPT      ?= scripts/setup-secrets.sh
-INJECT_SCRIPT       ?= scripts/inject-gh-secrets.sh
+
+# Scripts
+SECRETS_SCRIPT          ?= scripts/setup-secrets.sh
+INJECT_SCRIPT           ?= scripts/inject-gh-secrets.sh
+DELETE_SECRETS_SCRIPT   ?= scripts/gh-secrets-delete.sh
+DELETE_VARS_SCRIPT      ?= scripts/gh-vars-delete.sh
+
+# Sealed secrets
 SEALED_SECRETS_REPO ?= https://bitnami.github.io/sealed-secrets
 SEALED_SECRETS_NS   ?= sealed-secrets
 SEALED_SECRETS_NAME ?= sealed-secrets
@@ -37,11 +43,13 @@ sec-inject-gh:
 
 .PHONY: sec-delete-secrets
 sec-delete-secrets:
-	@bash $(DELETE_SECRETS_SCRIPT)
+	@chmod +x $(DELETE_SECRETS_SCRIPT) 2>/dev/null || true
+	@bash $(DELETE_SECRETS_SCRIPT) $(SECRET)
 
 .PHONY: sec-delete-vars
 sec-delete-vars:
-	@bash $(DELETE_VARS_SCRIPT)
+	@chmod +x $(DELETE_VARS_SCRIPT) 2>/dev/null || true
+	@bash $(DELETE_VARS_SCRIPT) $(VAR)
 
 .PHONY: sec-inject-cluster
 sec-inject-cluster:
