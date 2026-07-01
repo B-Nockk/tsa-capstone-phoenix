@@ -1,7 +1,7 @@
 # .gh_vars
 ENV=dev
 CLOUD=aws
-NAMESPACE=taskapp-dev
+NAMESPACE=taskapp
 DOMAIN_NAME=taskapp.local
 ARGOCD_DOMAIN=argocd.local
 CERT_EMAIL=ebrusontop@gmail.com
@@ -10,12 +10,12 @@ GITOPS_TARGET_REVISION=main
 ARGOCD_NAMESPACE=argocd
 
 # Terraform Vars
-TF_VAR_aws_region=us-east-1
-TF_VAR_environment=dev
-TF_VAR_project_name=tsa-capstone
-TF_VAR_instance_type=t3.micro
+TF_VAR_AWS_REGION=us-east-1
+TF_VAR_ENVIRONMENT=dev
+TF_VAR_PROJECT_NAME=tsa-capstone
+TF_VAR_INSTANCE_TYPE=t3.micro
 # Notice how it perfectly handles JSON objects without breaking!
-TF_VAR_node_count={"control_plane": 1, "workers": 2}
-TF_VAR_vpc_cidr=10.0.0.0/16
-TF_VAR_allowed_ssh_ips=["0.0.0.0/0"]
+TF_VAR_NODE_COUNT={"control_plane": 1, "workers": 2}
+TF_VAR_VPC_CIDR=10.0.0.0/16
+TF_VAR_ALLOWED_SSH_IPS=["0.0.0.0/0"]
 DUCKDNS_DOMAIN=tsa-capstone # Optional
