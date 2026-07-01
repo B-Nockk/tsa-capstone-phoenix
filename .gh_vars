@@ -2,8 +2,8 @@
 ENV=dev
 CLOUD=aws
 NAMESPACE=taskapp
-DOMAIN_NAME=taskapp.local
-ARGOCD_DOMAIN=argocd.local
+DOMAIN_NAME=nockk-tsa-capstone.duckdns.org
+ARGOCD_DOMAIN=argocd.nockk-tsa-capstone.duckdns.org
 CERT_EMAIL=ebrusontop@gmail.com
 GITOPS_REPO_URL=https://github.com/B-Nockk/tsa-capstone-phoenix.git
 GITOPS_TARGET_REVISION=main
@@ -11,7 +11,7 @@ ARGOCD_NAMESPACE=argocd
 
 # System/Make Toggles
 ENABLE_REMOTE_STATE=true
-DUCKDNS_DOMAIN=tsa-capstone
+DUCKDNS_DOMAIN=nockk-tsa-capstone
 ACTIONS_STEP_DEBUG=true
 ACTIONS_RUNNER_DEBUG=true
 ; TF_STATE_BUCKET=tsa-capstone-tfstate-dev

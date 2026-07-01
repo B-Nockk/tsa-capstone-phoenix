@@ -105,9 +105,19 @@
           if: github.event.inputs.use_duckdns == 'true'
           env:
             DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
+            DUCKDNS_DOMAIN: ${{ vars.DUCKDNS_DOMAIN }}
           run: |
             if [ -n "$DUCKDNS_TOKEN" ] && [ -n "$DUCKDNS_DOMAIN" ]; then
-              IP=$(curl -s https://checkip.amazonaws.com)
+              echo "Fetching Control Plane IP from Terraform state..."
+              # Initialize Terraform state quietly to access outputs
+              make tf-init ENV=${{ env.ENV }} > /dev/null
+              IP=$(cd infra/terraform && terraform output -json control_plane_public_ips | jq -r '.[0]')
+
+              if [ -z "$IP" ] || [ "$IP" = "null" ]; then
+                echo "Error: Could not retrieve IP from Terraform state."
+                exit 1
+              fi
+
               echo "Updating DuckDNS $DUCKDNS_DOMAIN to $IP"
               curl -s "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAIN}&token=${DUCKDNS_TOKEN}&ip=${IP}"
               echo "HOST=${DUCKDNS_DOMAIN}.duckdns.org" >> "$GITHUB_ENV"
