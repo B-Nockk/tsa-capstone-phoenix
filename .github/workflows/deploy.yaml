@@ -80,6 +80,7 @@
         - name: Provision Infrastructure
           if: github.event.inputs.run_terraform != 'false'
           run: |
+            make tf-backend-setup ENV=${{ env.ENV }}
             make tf-apply ENV=${{ env.ENV }} \
               TF_VAR_ssh_public_key_content="${{ secrets.SSH_PUBLIC_KEY }}"
 
