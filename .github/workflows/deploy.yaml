@@ -1,138 +1,139 @@
-name: Deploy TaskApp (GitOps)
-on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy to'
-        required: true
-        default: 'dev'
-        type: choice
-        options: [dev, prod]
-      run_terraform:
-        description: '1. Provision Infrastructure (Terraform)?'
-        required: true
-        default: true
-        type: boolean
-      run_ansible:
-        description: '2. Configure Cluster (Ansible)?'
-        required: true
-        default: true
-        type: boolean
-      use_duckdns:
-        description: '3. Update DuckDNS with new IP?'
-        required: true
-        default: false
-        type: boolean
-      deploy_argo:
-        description: '4. Deploy Application (ArgoCD)?'
-        required: true
-        default: true
-        type: boolean
+  name: Deploy TaskApp (GitOps)
+  on:
+    workflow_dispatch:
+      inputs:
+        environment:
+          description: 'Environment to deploy to'
+          required: true
+          default: 'dev'
+          type: choice
+          options: [dev, prod]
+        run_terraform:
+          description: '1. Provision Infrastructure (Terraform)?'
+          required: true
+          default: true
+          type: boolean
+        run_ansible:
+          description: '2. Configure Cluster (Ansible)?'
+          required: true
+          default: true
+          type: boolean
+        use_duckdns:
+          description: '3. Update DuckDNS with new IP?'
+          required: true
+          default: false
+          type: boolean
+        deploy_argo:
+          description: '4. Deploy Application (ArgoCD)?'
+          required: true
+          default: true
+          type: boolean
 
-env:
-  ENV: ${{ github.event.inputs.environment || 'dev' }}
-  CLOUD: aws
-  NAMESPACE: taskapp-${{ github.event.inputs.environment || 'dev' }}
+  env:
+    ENV: ${{ github.event.inputs.environment || 'dev' }}
+    CLOUD: aws
+    NAMESPACE: taskapp-${{ github.event.inputs.environment || 'dev' }}
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'dev' }}
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      environment: ${{ github.event.inputs.environment || 'dev' }}
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      steps:
+        - name: Checkout Code
+          uses: actions/checkout@v4
 
-      - name: Load GitHub Variables into Environment
-        env:
-          GH_VARS: ${{ toJSON(vars) }}
-        run: |
-          echo "🔄 Dynamically loading repository variables..."
-          echo "$GH_VARS" | jq -r 'to_entries[] | "\(.key)<<__EOV__\n\(.value)\n__EOV__"' >> "$GITHUB_ENV"
-          echo "✅ Variables loaded!"
+        - name: Load GitHub Variables into Environment
+          env:
+            GH_VARS: ${{ toJSON(vars) }}
+          run: |
+            echo "🔄 Dynamically loading repository variables..."
+            # Intercept TF_VARs and force the variable name back to lowercase for Terraform
+            echo "$GH_VARS" | jq -r 'to_entries[] | if (.key | startswith("TF_VAR_")) then "TF_VAR_" + (.key[7:] | ascii_downcase) + "<<__EOV__\n\(.value)\n__EOV__" else "\(.key)<<__EOV__\n\(.value)\n__EOV__" end' >> "$GITHUB_ENV"
+            echo "✅ Variables loaded!"
 
-      - name: Setup CI Dependencies
-        run: make setup-ci-deps
+        - name: Setup CI Dependencies
+          run: make setup-ci-deps
 
-      # - name: Debug credential lengths
-      #   run: |
-      #     echo "AKID length: ${#AWS_ACCESS_KEY_ID}"
-      #     echo "SECRET length: ${#AWS_SECRET_ACCESS_KEY}"
-      #   env:
-      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        - name: Debug credential lengths
+          run: |
+            echo "AKID length: ${#AWS_ACCESS_KEY_ID}"
+            echo "SECRET length: ${#AWS_SECRET_ACCESS_KEY}"
+          env:
+            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.TF_VAR_aws_region }}
+        - name: Configure AWS Credentials
+          uses: aws-actions/configure-aws-credentials@v4
+          with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: ${{ env.TF_VAR_aws_region }}
 
-      - name: Setup SSH Key for CI
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+        - name: Setup SSH Key for CI
+          run: |
+            mkdir -p ~/.ssh
+            echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
 
-      # --- STAGE 1: TERRAFORM ---
-      - name: Provision Infrastructure
-        if: github.event.inputs.run_terraform != 'false'
-        run: |
-          make tf-apply ENV=${{ env.ENV }} \
-            TF_VAR_ssh_public_key_content="${{ secrets.SSH_PUBLIC_KEY }}"
+        # --- STAGE 1: TERRAFORM ---
+        - name: Provision Infrastructure
+          if: github.event.inputs.run_terraform != 'false'
+          run: |
+            make tf-apply ENV=${{ env.ENV }} \
+              TF_VAR_ssh_public_key_content="${{ secrets.SSH_PUBLIC_KEY }}"
 
-      # --- STAGE 2: ANSIBLE & KUBECONFIG ---
-      - name: Configure Cluster
-        if: github.event.inputs.run_ansible != 'false'
-        run: |
-          make ans-run ENV=${{ env.ENV }}
-          make tf-output > /dev/null # Ensure outputs are loaded
-          make k8s-context-cloud ENV=${{ env.ENV }}
-          mkdir -p ~/.kube
-          cp ./kubeconfig-${{ env.ENV }}.yaml ~/.kube/config
-          kubectl get nodes
+        # --- STAGE 2: ANSIBLE & KUBECONFIG ---
+        - name: Configure Cluster
+          if: github.event.inputs.run_ansible != 'false'
+          run: |
+            make ans-run ENV=${{ env.ENV }}
+            make tf-output > /dev/null # Ensure outputs are loaded
+            make k8s-context-cloud ENV=${{ env.ENV }}
+            mkdir -p ~/.kube
+            cp ./kubeconfig-${{ env.ENV }}.yaml ~/.kube/config
+            kubectl get nodes
 
-      # --- STAGE 3: PLATFORM & DOMAIN ---
-      - name: Setup Platform (Ingress, Cert-Manager)
-        if: github.event.inputs.deploy_argo != 'false'
-        run: |
-          make sys-setup ARGOCD_RESET_PASSWORD=false ENV=${{ env.ENV }} CLOUD=aws
+        # --- STAGE 3: PLATFORM & DOMAIN ---
+        - name: Setup Platform (Ingress, Cert-Manager)
+          if: github.event.inputs.deploy_argo != 'false'
+          run: |
+            make sys-setup ARGOCD_RESET_PASSWORD=false ENV=${{ env.ENV }} CLOUD=aws
 
-      - name: Manage Domain (DuckDNS)
-        if: github.event.inputs.use_duckdns == 'true'
-        env:
-          DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
-        run: |
-          if [ -n "$DUCKDNS_TOKEN" ] && [ -n "$DUCKDNS_DOMAIN" ]; then
-            IP=$(curl -s https://checkip.amazonaws.com)
-            echo "Updating DuckDNS $DUCKDNS_DOMAIN to $IP"
-            curl -s "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAIN}&token=${DUCKDNS_TOKEN}&ip=${IP}"
-            echo "HOST=${DUCKDNS_DOMAIN}.duckdns.org" >> "$GITHUB_ENV"
-          else
-            echo "DuckDNS secrets missing. Skipping."
-          fi
+        - name: Manage Domain (DuckDNS)
+          if: github.event.inputs.use_duckdns == 'true'
+          env:
+            DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
+          run: |
+            if [ -n "$DUCKDNS_TOKEN" ] && [ -n "$DUCKDNS_DOMAIN" ]; then
+              IP=$(curl -s https://checkip.amazonaws.com)
+              echo "Updating DuckDNS $DUCKDNS_DOMAIN to $IP"
+              curl -s "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAIN}&token=${DUCKDNS_TOKEN}&ip=${IP}"
+              echo "HOST=${DUCKDNS_DOMAIN}.duckdns.org" >> "$GITHUB_ENV"
+            else
+              echo "DuckDNS secrets missing. Skipping."
+            fi
 
-      # --- STAGE 4: GITOPS DEPLOYMENT ---
-      - name: Deploy via ArgoCD
-        if: github.event.inputs.deploy_argo != 'false'
-        run: |
-          # Inject repo dynamically
-          sed -i "s|repoURL:.*|repoURL: ${{ github.server_url }}/${{ github.repository }}|g" gitops/application.${{ env.ENV }}.yaml
-          make argo-deploy ENV=${{ env.ENV }} HOST=${{ env.HOST }}
+        # --- STAGE 4: GITOPS DEPLOYMENT ---
+        - name: Deploy via ArgoCD
+          if: github.event.inputs.deploy_argo != 'false'
+          run: |
+            # Inject repo dynamically
+            sed -i "s|repoURL:.*|repoURL: ${{ github.server_url }}/${{ github.repository }}|g" gitops/application.${{ env.ENV }}.yaml
+            make argo-deploy ENV=${{ env.ENV }} HOST=${{ env.HOST }}
 
-      - name: Run Tests
-        if: github.event.inputs.deploy_argo != 'false'
-        run: make helm-test-app ENV=${{ env.ENV }}
+        - name: Run Tests
+          if: github.event.inputs.deploy_argo != 'false'
+          run: make helm-test-app ENV=${{ env.ENV }}
 
-      - name: Generate Summary
-        if: always()
-        run: |
-          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Environment** | ${{ env.ENV }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Terraform Executed** | ${{ github.event.inputs.run_terraform || 'true (push)' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Ansible Executed** | ${{ github.event.inputs.run_ansible || 'true (push)' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **DuckDNS Updated** | ${{ github.event.inputs.use_duckdns || 'false (push)' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **ArgoCD Deployed** | ${{ github.event.inputs.deploy_argo || 'true (push)' }} |" >> $GITHUB_STEP_SUMMARY
+        - name: Generate Summary
+          if: always()
+          run: |
+            echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| **Environment** | ${{ env.ENV }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Terraform Executed** | ${{ github.event.inputs.run_terraform || 'true (push)' }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Ansible Executed** | ${{ github.event.inputs.run_ansible || 'true (push)' }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| **DuckDNS Updated** | ${{ github.event.inputs.use_duckdns || 'false (push)' }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| **ArgoCD Deployed** | ${{ github.event.inputs.deploy_argo || 'true (push)' }} |" >> $GITHUB_STEP_SUMMARY
