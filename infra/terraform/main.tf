@@ -122,7 +122,7 @@ resource "local_file" "ansible_inventory" {
     k3s_token                 = module.compute.k3s_token
   })
 
-  filename = "${path.module}/../../ansible/inventory/${var.environment}/hosts.ini"
+  filename = "${path.module}/../ansible/inventory/${var.environment}/hosts.ini"
 
   depends_on = [module.compute]
 }
