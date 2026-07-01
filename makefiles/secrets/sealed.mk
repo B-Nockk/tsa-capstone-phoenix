@@ -15,6 +15,8 @@ help-secrets:
 	@echo "  sec-generate          Generate secrets file"
 	@echo "  sec-inject-gh         Inject secrets to GitHub"
 	@echo "  sec-inject-cluster    Inject SealedSecret to cluster"
+	@echo "	 sec-delete-secrets    Delete secrets from GitHub"
+	@echo "	 sec-delete-vars       Delete variables from GitHub"
 	@echo "  sec-install-controller Install SealedSecrets controller"
 
 .PHONY: sec-generate
@@ -32,6 +34,14 @@ sec-generate:
 .PHONY: sec-inject-gh
 sec-inject-gh:
 	@bash $(INJECT_SCRIPT) $(ENV)
+
+.PHONY: sec-delete-secrets
+sec-delete-secrets:
+	@bash $(DELETE_SECRETS_SCRIPT)
+
+.PHONY: sec-delete-vars
+sec-delete-vars:
+	@bash $(DELETE_VARS_SCRIPT)
 
 .PHONY: sec-inject-cluster
 sec-inject-cluster:
