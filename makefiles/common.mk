@@ -29,8 +29,8 @@ LOCAL_SECRETS    	:= $(SECRETS_DIR)/$(ENV).env
 HELM_VALUES_FILE 	:= $(HELM_DIR)/values-$(ENV).yaml
 
 # Add these variables to common.mk if not already there
-SSH_PRIVATE_KEY_PATH ?= ~/.ssh/tsa-capstone/tsa-capstone-key
-SSH_PUBLIC_KEY_PATH  ?= ~/.ssh/tsa-capstone/tsa-capstone-key.pub
+SSH_PRIVATE_KEY_PATH ?= ~/.ssh/tsa-capstone/tsa-capstone-project
+SSH_PUBLIC_KEY_PATH  ?= ~/.ssh/tsa-capstone/tsa-capstone-project.pub
 
 define check_cmd
 	@command -v $(1) >/dev/null 2>&1 || { echo "$(RED)❌ $(1) not found$(RESET)"; exit 1; }
