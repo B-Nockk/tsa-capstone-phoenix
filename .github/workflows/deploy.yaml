@@ -1,8 +1,8 @@
 name: Deploy TaskApp (GitOps)
 
 on:
-  push:
-    branches: [main]
+  # push:
+  #   branches: [main]
   # The "Orchestrator" UI in GitHub Actions
   workflow_dispatch:
     inputs:
