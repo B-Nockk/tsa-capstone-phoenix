@@ -17,8 +17,16 @@ node-token
 .env
 .env.*
 !.env.example
-*secret*.yaml
-!*secret*.example.yaml
+!.env.complete
+
+# Ignore raw secrets
+secret.yaml
+secrets.yaml
+
+# DO NOT ignore sealed secrets (GitOps needs them!)
+!sealed-secret.yaml
+!*sealed-secret*.yaml
+
 *.pem
 *.key
 id_rsa*
@@ -68,3 +76,8 @@ infra/k8s/certificates/
 
 # Terraform outputs (contains IPs for certs)
 infra/terraform/.terraform-outputs.json
+
+# Generated local directories
+logs/
+argocd/
+.secrets/
