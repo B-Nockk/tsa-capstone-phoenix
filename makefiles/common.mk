@@ -82,6 +82,12 @@ setup-ci-deps: ## Install all required tools for CI/CD runners (Ubuntu)
 	@sudo apt-get update -qq
 	@sudo apt-get install -y -qq apache2-utils jq unzip
 
+	@# terraform
+	@echo "  Installing terraform..."
+	@wget -q https://releases.hashicorp.com/terraform/1.8.0/terraform_1.8.0_linux_amd64.zip
+	@unzip -q terraform_1.8.0_linux_amd64.zip
+	@sudo install -m 755 terraform /usr/local/bin/terraform && rm terraform terraform_1.8.0_linux_amd64.zip
+
 	@# kubectl
 	@echo "  Installing kubectl..."
 	@curl -sLO "https://dl.k8s.io/release/$$(curl -sL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"

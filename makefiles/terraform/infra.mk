@@ -4,8 +4,14 @@
 TF_DIR         ?= $(TERRAFORM_DIR)
 TF_ENV         ?= $(ENV)
 TF_VAR_FILE    ?= $(TF_DIR)/env/$(TF_ENV).tfvars
-TF_ARGS        ?= -var-file=$(TF_VAR_FILE) -auto-approve
+TF_VAR_ARG     := $(shell if [ -f $(TF_VAR_FILE) ]; then echo "-var-file=$(TF_VAR_FILE)"; else echo ""; fi)
+TF_ARGS        ?= $(TF_VAR_ARG) -auto-approve
 TF_PARALLELISM ?= 10
+
+# Default bucket name uses the project name and AWS account ID (or a random string) to ensure uniqueness
+TF_STATE_BUCKET ?= $(PROJECT_NAME)-tfstate-$(ENV)
+TF_LOCK_TABLE   ?= terraform-locks
+TF_REGION       ?= eu-north-1
 
 .PHONY: help-terraform
 help-terraform:
@@ -19,7 +25,19 @@ help-terraform:
 
 .PHONY: tf-init
 tf-init: ## Initialize Terraform
-	@cd $(TF_DIR) && terraform init
+	@echo "$(YELLOW)🔧 Initializing Terraform (Checking for remote state...)$(RESET)"
+	@if [ "$(ENABLE_REMOTE_STATE)" = "true" ]; then \
+		echo "$(GREEN)☁️  Using remote S3 backend: $(TF_STATE_BUCKET)$(RESET)"; \
+		cd $(TF_DIR) && terraform init \
+			-backend-config="bucket=$(TF_STATE_BUCKET)" \
+			-backend-config="key=$(ENV)/terraform.tfstate" \
+			-backend-config="region=$(TF_REGION)" \
+			-backend-config="dynamodb_table=$(TF_LOCK_TABLE)" \
+			-backend-config="encrypt=true"; \
+	else \
+		echo "$(YELLOW)💻 Using local state (Remote state disabled)$(RESET)"; \
+		cd $(TF_DIR) && terraform init; \
+	fi
 
 .PHONY: tf-plan
 tf-plan: ## Plan infrastructure changes

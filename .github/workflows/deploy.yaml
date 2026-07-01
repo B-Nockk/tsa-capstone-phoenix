@@ -1,9 +1,5 @@
 name: Deploy TaskApp (GitOps)
-
 on:
-  # push:
-  #   branches: [main]
-  # The "Orchestrator" UI in GitHub Actions
   workflow_dispatch:
     inputs:
       environment:
@@ -25,7 +21,7 @@ on:
       use_duckdns:
         description: '3. Update DuckDNS with new IP?'
         required: true
-        default: false  # Default to false so it doesn't break for others
+        default: false
         type: boolean
       deploy_argo:
         description: '4. Deploy Application (ArgoCD)?'
@@ -47,23 +43,31 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Load GitHub Variables into Environment
+        env:
+          GH_VARS: ${{ toJSON(vars) }}
+        run: |
+          echo "🔄 Dynamically loading repository variables..."
+          echo "$GH_VARS" | jq -r 'to_entries[] | "\(.key)<<__EOV__\n\(.value)\n__EOV__"' >> "$GITHUB_ENV"
+          echo "✅ Variables loaded!"
+
       - name: Setup CI Dependencies
         run: make setup-ci-deps
 
-      - name: Debug credential lengths
-        run: |
-          echo "AKID length: ${#AWS_ACCESS_KEY_ID}"
-          echo "SECRET length: ${#AWS_SECRET_ACCESS_KEY}"
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      # - name: Debug credential lengths
+      #   run: |
+      #     echo "AKID length: ${#AWS_ACCESS_KEY_ID}"
+      #     echo "SECRET length: ${#AWS_SECRET_ACCESS_KEY}"
+      #   env:
+      #     AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-north-1
+          aws-region: ${{ env.TF_VAR_aws_region }}
 
       - name: Setup SSH Key for CI
         run: |
@@ -99,13 +103,12 @@ jobs:
         if: github.event.inputs.use_duckdns == 'true'
         env:
           DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
-          DUCKDNS_DOMAIN: ${{ vars.DUCKDNS_DOMAIN }}
         run: |
           if [ -n "$DUCKDNS_TOKEN" ] && [ -n "$DUCKDNS_DOMAIN" ]; then
             IP=$(curl -s https://checkip.amazonaws.com)
             echo "Updating DuckDNS $DUCKDNS_DOMAIN to $IP"
             curl -s "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAIN}&token=${DUCKDNS_TOKEN}&ip=${IP}"
-            echo "HOST=${DUCKDNS_DOMAIN}.duckdns.org" >> $GITHUB_ENV
+            echo "HOST=${DUCKDNS_DOMAIN}.duckdns.org" >> "$GITHUB_ENV"
           else
             echo "DuckDNS secrets missing. Skipping."
           fi
