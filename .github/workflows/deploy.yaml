@@ -90,9 +90,9 @@
           run: |
             make ans-run ENV=${{ env.ENV }}
             make tf-output > /dev/null # Ensure outputs are loaded
-            make k8s-context-cloud ENV=${{ env.ENV }}
+            # make k8s-context-cloud ENV=${{ env.ENV }}
             mkdir -p ~/.kube
-            cp ./kubeconfig-${{ env.ENV }}.yaml ~/.kube/config
+            cp infra/ansible/kubeconfig-${{ env.ENV }}.yaml ~/.kube/config
             kubectl get nodes
 
         # --- STAGE 3: PLATFORM & DOMAIN ---
