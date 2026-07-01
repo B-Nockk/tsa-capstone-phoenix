@@ -82,7 +82,8 @@
           run: |
             make tf-backend-setup ENV=${{ env.ENV }}
             make tf-apply ENV=${{ env.ENV }} \
-              TF_VAR_ssh_public_key_content="${{ secrets.SSH_PUBLIC_KEY }}"
+              TF_VAR_ssh_public_key_content="${{ secrets.SSH_PUBLIC_KEY }}" \
+              TF_VAR_ssh_private_key_path="/home/runner/.ssh/id_rsa"
 
         # --- STAGE 2: ANSIBLE & KUBECONFIG ---
         - name: Configure Cluster
