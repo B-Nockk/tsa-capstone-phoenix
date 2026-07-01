@@ -5,13 +5,13 @@
 variable "ssh_key_name" {
   description = "Name of the SSH key pair in AWS"
   type        = string
-  default     = "tsa-capstone-key"
+  default     = "tsa-capstone-project"
 }
 
 variable "ssh_public_key_path" {
   description = "Path to the SSH public key file"
   type        = string
-  default     = "~/.ssh/tsa-capstone/tsa-capstone-key.pub"
+  default     = "~/.ssh/tsa-capstone/tsa-capstone-project.pub"
 }
 
 variable "ssh_public_key_content" {
@@ -23,7 +23,7 @@ variable "ssh_public_key_content" {
 variable "ssh_private_key_path" {
   description = "Path to the SSH private key file"
   type        = string
-  default     = "~/.ssh/tsa-capstone/tsa-capstone-key"
+  default     = "~/.ssh/tsa-capstone/tsa-capstone-project"
 }
 
 variable "generate_ssh_key" {
