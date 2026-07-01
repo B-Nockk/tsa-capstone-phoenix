@@ -58,11 +58,11 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "availability_zones" {
-  description = "Availability zones for HA"
-  type        = list(string)
-  default     = ["us-east-1a", "us-east-1b"]
-}
+# variable "availability_zones" {
+#   description = "Availability zones for HA"
+#   type        = list(string)
+#   default     = ["us-east-1a", "us-east-1b"]
+# }
 
 # ============================================
 # COMPUTE CONFIGURATION (AWS Free Tier)

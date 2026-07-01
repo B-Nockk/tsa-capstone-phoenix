@@ -6,6 +6,10 @@ provider "aws" {
   region = var.aws_region
 }
 
+# Dynamically fetch available AZs for the current region
+data "aws_availability_zones" "available" {
+  state = "available"
+}
 # ============================================
 # SSH KEY MANAGEMENT (Optimized for CI/CD)
 # ============================================
@@ -64,8 +68,10 @@ module "network" {
   vpc_cidr             = var.vpc_cidr
   public_subnet_cidrs  = var.public_subnet_cidrs
   private_subnet_cidrs = var.private_subnet_cidrs
-  availability_zones   = var.availability_zones
   aws_region           = var.aws_region
+
+  # use dynamically fetched zones instead of a hardcoded variable
+  availability_zones = data.aws_availability_zones.available.names
 }
 
 # ============================================
