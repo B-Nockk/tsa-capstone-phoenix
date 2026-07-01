@@ -3,6 +3,7 @@ name: Deploy TaskApp (GitOps)
 on:
   push:
     branches: [main]
+  # The "Orchestrator" UI in GitHub Actions
   workflow_dispatch:
     inputs:
       environment:
@@ -11,13 +12,23 @@ on:
         default: 'dev'
         type: choice
         options: [dev, prod]
-      provision_infra:
-        description: 'Provision infrastructure (Terraform + Ansible)?'
+      run_terraform:
+        description: '1. Provision Infrastructure (Terraform)?'
         required: true
         default: true
         type: boolean
-      deploy_app:
-        description: 'Deploy application via ArgoCD?'
+      run_ansible:
+        description: '2. Configure Cluster (Ansible)?'
+        required: true
+        default: true
+        type: boolean
+      use_duckdns:
+        description: '3. Update DuckDNS with new IP?'
+        required: true
+        default: false  # Default to false so it doesn't break for others
+        type: boolean
+      deploy_argo:
+        description: '4. Deploy Application (ArgoCD)?'
         required: true
         default: true
         type: boolean
@@ -52,26 +63,32 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
-      - name: Provision Infrastructure (Terraform + Ansible)
-        if: github.event.inputs.provision_infra != 'false'
+      # --- STAGE 1: TERRAFORM ---
+      - name: Provision Infrastructure
+        if: github.event.inputs.run_terraform != 'false'
         run: |
-          make infra-apply ENV=${{ env.ENV }} \
+          make tf-apply ENV=${{ env.ENV }} \
             TF_VAR_ssh_public_key_content="${{ secrets.SSH_PUBLIC_KEY }}"
-          make ansible-run ENV=${{ env.ENV }}
 
-      - name: Fetch Kubeconfig
-        if: github.event.inputs.provision_infra != 'false'
+      # --- STAGE 2: ANSIBLE & KUBECONFIG ---
+      - name: Configure Cluster
+        if: github.event.inputs.run_ansible != 'false'
         run: |
-          make infra-kubeconfig ENV=${{ env.ENV }}
+          make ans-run ENV=${{ env.ENV }}
+          make tf-output > /dev/null # Ensure outputs are loaded
+          make k8s-context-cloud ENV=${{ env.ENV }}
           mkdir -p ~/.kube
           cp ./kubeconfig-${{ env.ENV }}.yaml ~/.kube/config
           kubectl get nodes
 
-      - name: Setup Platform (Ingress, Cert-Manager, ArgoCD)
+      # --- STAGE 3: PLATFORM & DOMAIN ---
+      - name: Setup Platform (Ingress, Cert-Manager)
+        if: github.event.inputs.deploy_argo != 'false'
         run: |
           make sys-setup ARGOCD_RESET_PASSWORD=false ENV=${{ env.ENV }} CLOUD=aws
 
-      - name: Update DuckDNS (If using ephemeral IPs)
+      - name: Manage Domain (DuckDNS)
+        if: github.event.inputs.use_duckdns == 'true'
         env:
           DUCKDNS_TOKEN: ${{ secrets.DUCKDNS_TOKEN }}
           DUCKDNS_DOMAIN: ${{ vars.DUCKDNS_DOMAIN }}
@@ -80,32 +97,31 @@ jobs:
             IP=$(curl -s https://checkip.amazonaws.com)
             echo "Updating DuckDNS $DUCKDNS_DOMAIN to $IP"
             curl -s "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAIN}&token=${DUCKDNS_TOKEN}&ip=${IP}"
-            # Override the HOST variable for subsequent steps
             echo "HOST=${DUCKDNS_DOMAIN}.duckdns.org" >> $GITHUB_ENV
           else
-            echo "DuckDNS not configured, using default HOST"
+            echo "DuckDNS secrets missing. Skipping."
           fi
 
-      - name: Deploy Application via ArgoCD (GitOps)
-        if: github.event.inputs.deploy_app != 'false'
+      # --- STAGE 4: GITOPS DEPLOYMENT ---
+      - name: Deploy via ArgoCD
+        if: github.event.inputs.deploy_argo != 'false'
         run: |
-          # Dynamically inject the correct domain/IP into the ArgoCD manifest
+          # Inject repo dynamically
           sed -i "s|repoURL:.*|repoURL: ${{ github.server_url }}/${{ github.repository }}|g" gitops/application.${{ env.ENV }}.yaml
           make argo-deploy ENV=${{ env.ENV }} HOST=${{ env.HOST }}
 
       - name: Run Tests
-        if: github.event.inputs.deploy_app != 'false'
-        run: make app-test ENV=${{ env.ENV }}
+        if: github.event.inputs.deploy_argo != 'false'
+        run: make helm-test-app ENV=${{ env.ENV }}
 
-      - name: Generate Step Summary
+      - name: Generate Summary
         if: always()
         run: |
           echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| **Environment** | ${{ env.ENV }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Cloud** | ${{ env.CLOUD }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Namespace** | ${{ env.NAMESPACE }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Host/Domain** | ${{ env.HOST || 'Not Set' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Infra Provisioned** | ${{ github.event.inputs.provision_infra || 'true (push)' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| **App Deployed** | ${{ github.event.inputs.deploy_app || 'true (push)' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Terraform Executed** | ${{ github.event.inputs.run_terraform || 'true (push)' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Ansible Executed** | ${{ github.event.inputs.run_ansible || 'true (push)' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **DuckDNS Updated** | ${{ github.event.inputs.use_duckdns || 'false (push)' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **ArgoCD Deployed** | ${{ github.event.inputs.deploy_argo || 'true (push)' }} |" >> $GITHUB_STEP_SUMMARY

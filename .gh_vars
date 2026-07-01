@@ -1,10 +1,10 @@
 # .gh_vars
 ENV=dev
-CLOUD=local
+CLOUD=aws
 NAMESPACE=taskapp-dev
 DOMAIN_NAME=taskapp.local
 ARGOCD_DOMAIN=argocd.local
-CERT_EMAIL=devops@tsa.edu
+CERT_EMAIL=ebrusontop@gmail.com
 GITOPS_REPO_URL=https://github.com/B-Nockk/tsa-capstone-phoenix.git
 GITOPS_TARGET_REVISION=main
 ARGOCD_NAMESPACE=argocd
@@ -17,4 +17,5 @@ TF_VAR_instance_type=t3.micro
 # Notice how it perfectly handles JSON objects without breaking!
 TF_VAR_node_count={"control_plane": 1, "workers": 2}
 TF_VAR_vpc_cidr=10.0.0.0/16
-TF_VAR_allowed_ssh_ips=["154.118.24.60/32"]
+TF_VAR_allowed_ssh_ips=["0.0.0.0/0"]
+DUCKDNS_DOMAIN=tsa-capstone # Optional

@@ -7,16 +7,15 @@ provider "aws" {
 }
 
 # ============================================
-# SSH KEY MANAGEMENT
+# SSH KEY MANAGEMENT (Optimized for CI/CD)
 # ============================================
 
-# Generate SSH key pair if it doesn't exist
+# Generate SSH key pair locally if it doesn't exist (Local Dev only)
 resource "tls_private_key" "ssh" {
   count     = var.generate_ssh_key ? 1 : 0
   algorithm = "ED25519"
 }
 
-# Create the SSH key directory
 resource "null_resource" "ssh_dir" {
   count = var.generate_ssh_key ? 1 : 0
 
@@ -25,7 +24,6 @@ resource "null_resource" "ssh_dir" {
   }
 }
 
-# Write the private key to local file
 resource "local_file" "ssh_private" {
   count           = var.generate_ssh_key ? 1 : 0
   content         = tls_private_key.ssh[0].private_key_openssh
@@ -35,7 +33,6 @@ resource "local_file" "ssh_private" {
   depends_on = [null_resource.ssh_dir]
 }
 
-# Write the public key to local file
 resource "local_file" "ssh_public" {
   count           = var.generate_ssh_key ? 1 : 0
   content         = tls_private_key.ssh[0].public_key_openssh
@@ -45,34 +42,15 @@ resource "local_file" "ssh_public" {
   depends_on = [null_resource.ssh_dir]
 }
 
-# Import the SSH key to AWS
-# ============================================
-# SSH KEY MANAGEMENT (Idempotent for CI/CD)
-# ============================================
-# We assume the key is generated locally or by CI via `make ssh-key-setup`.
-# Instead of Terraform creating the key pair (which fails if it already exists in AWS),
-# we use the AWS CLI to import it. The `|| true` makes it perfectly idempotent.
+# Native AWS Key Pair resource
+# If CI/CD passes the string, use it. Otherwise, read the local file.
+resource "aws_key_pair" "capstone" {
+  key_name   = var.ssh_key_name
+  public_key = var.ssh_public_key_content != "" ? var.ssh_public_key_content : file(var.ssh_public_key_path)
 
-resource "null_resource" "import_ssh_key_to_aws" {
-  provisioner "local-exec" {
-    command = <<-EOT
-      aws ec2 import-key-pair \
-        --key-name ${var.ssh_key_name} \
-        --public-key-material fileb://${var.ssh_public_key_path} \
-        --region ${var.aws_region} \
-        --tag-specifications 'ResourceType=key-pair,Tags=[{Key=Name,Value=${var.project_name}-${var.environment}-key},{Key=Environment,Value=${var.environment}}]' \
-      || true
-    EOT
-  }
-
-  # Ensure the public key file exists before trying to import
-  provisioner "local-exec" {
-    command = "test -f ${var.ssh_public_key_path} || (echo '❌ Public key not found at ${var.ssh_public_key_path}. Run: make ssh-key-setup' && exit 1)"
-  }
+  # Ensure the local file exists first if we are generating it
+  depends_on = [local_file.ssh_public]
 }
-
-# Remove the old `resource "aws_key_pair" "capstone"` block entirely.
-# Update the module.compute to use var.ssh_key_name directly instead of aws_key_pair.capstone.key_name
 
 # ============================================
 # NETWORK MODULE
@@ -117,7 +95,7 @@ module "compute" {
   node_count        = var.node_count
   public_subnet_ids = module.network.public_subnet_ids
   security_group_id = module.security.security_group_id
-  ssh_key_name      = var.ssh_key_name
+  ssh_key_name      = aws_key_pair.capstone.key_name
   k3s_version       = var.k3s_version
   aws_region        = var.aws_region
 }
@@ -178,7 +156,7 @@ output "ssh_command" {
 output "kubeconfig_command" {
   value = <<-EOT
     # Get kubeconfig:
-    scp -i ${var.ssh_private_key_path} ubuntu@${module.compute.control_plane_public_ips[0]}:/etc/rancher/k3s/k3s.yaml ./kubeconfig-${var.environment}.yaml
+    scp -o StrictHostKeyChecking=no -i ${var.ssh_private_key_path} ubuntu@${module.compute.control_plane_public_ips[0]}:/etc/rancher/k3s/k3s.yaml ./kubeconfig-${var.environment}.yaml
     sed -i 's/127.0.0.1/${module.compute.control_plane_public_ips[0]}/g' ./kubeconfig-${var.environment}.yaml
     export KUBECONFIG=./kubeconfig-${var.environment}.yaml
     kubectl get nodes

@@ -51,15 +51,15 @@ resource "aws_security_group_rule" "https" {
   description       = "HTTPS from anywhere"
 }
 
-# Kubernetes API - only from VPC (not public!)
+# Kubernetes API - only from VPC AND Admin IPs
 resource "aws_security_group_rule" "k8s_api" {
   type              = "ingress"
   from_port         = 6443
   to_port           = 6443
   protocol          = "tcp"
-  cidr_blocks       = [var.vpc_cidr]
+  cidr_blocks       = concat([var.vpc_cidr], var.allowed_ssh_ips)
   security_group_id = aws_security_group.nodes.id
-  description       = "Kubernetes API (VPC only)"
+  description       = "Kubernetes API (VPC + Admin IP)"
 }
 
 # Node-to-node communication (internal)

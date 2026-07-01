@@ -26,6 +26,24 @@
   retries: 30
   delay: 5
 
+# --- NEW: CALICO CNI INSTALLATION ---
+- name: Install Calico Tigera Operator
+  shell: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml
+  register: calico_operator
+  failed_when: calico_operator.rc != 0 and 'AlreadyExists' not in calico_operator.stderr
+  changed_when: "'created' in calico_operator.stdout"
+
+- name: Wait for Tigera Operator to be ready
+  pause:
+    seconds: 10
+
+- name: Install Calico Custom Resources
+  shell: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/custom-resources.yaml
+  register: calico_cr
+  failed_when: calico_cr.rc != 0 and 'AlreadyExists' not in calico_cr.stderr
+  changed_when: "'created' in calico_cr.stdout"
+# ------------------------------------
+
 - name: Get node token for workers
   shell: cat /var/lib/rancher/k3s/server/node-token
   register: node_token
