@@ -14,7 +14,10 @@ ENABLE_REMOTE_STATE=true
 DUCKDNS_DOMAIN=nockk-tsa-capstone
 ACTIONS_STEP_DEBUG=true
 ACTIONS_RUNNER_DEBUG=true
-; TF_STATE_BUCKET=tsa-capstone-tfstate-dev
+
+# NOTE:: ADD this to use a controlled bucket. default pattern is: $(TF_VAR_project_name)-tfstate-$(AWS_ACCOUNT_ID)-$(ENV)
+# controlled by infra.mk
+# TF_STATE_BUCKET=tsa-capstone-tfstate-dev
 
 # Terraform Specific Variables (Must be lowercase after TF_VAR_)
 TF_VAR_aws_region=eu-north-1
