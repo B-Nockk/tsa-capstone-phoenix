@@ -50,6 +50,14 @@ jobs:
       - name: Setup CI Dependencies
         run: make setup-ci-deps
 
+      - name: Debug credential lengths
+        run: |
+          echo "AKID length: ${#AWS_ACCESS_KEY_ID}"
+          echo "SECRET length: ${#AWS_SECRET_ACCESS_KEY}"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
