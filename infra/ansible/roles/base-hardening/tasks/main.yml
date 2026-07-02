@@ -38,10 +38,11 @@
 # TODO:: needs an IAM instance profile with AmazonSSMManagedInstanceCore attached in the compute module
 #   - worth adding regardless, it's the standard "I locked myself out" escape hatch for EC2).
 #   - Then: aws ssm start-session --target <instance-id> gets you a shell with zero dependency on SSH working.
-- name: Install SSM agent (out-of-band access, bypasses SSH/fail2ban lockouts)
-  apt:
-    name: amazon-ssm-agent
-    state: present
+# Uncomment Below
+# - name: Install SSM agent (out-of-band access, bypasses SSH/fail2ban lockouts)
+#   apt:
+#     name: amazon-ssm-agent
+#     state: present
 
 - name: Set timezone
   timezone:
