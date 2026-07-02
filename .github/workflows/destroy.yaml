@@ -46,17 +46,23 @@ jobs:
           aws-region: eu-north-1
 
       # Terraform Destroy Stage
+      # - name: Destroy Infrastructure
+      #   run: |
+      #     # 1. Verify/Create the S3 bucket and DynamoDB table (if missing)
+      #     make tf-backend-setup ENV=${{ env.ENV }}
+
+      #     # 2. Initialize the backend connection so Terraform can read the state
+      #     echo "🔄 Initializing Terraform Backend..."
+      #     make tf-init ENV=${{ env.ENV }}
+
+      #     # 3. Run the destroy command
+      #     echo "🧨 Nuking environment: ${{ env.ENV }}..."
+      #     cd infra/terraform && terraform destroy -auto-approve \
+      #       -var-file="env/${{ env.ENV }}.tfvars" 2>/dev/null || \
+      #       terraform destroy -auto-approve
+
       - name: Destroy Infrastructure
         run: |
-          # 1. Verify/Create the S3 bucket and DynamoDB table (if missing)
           make tf-backend-setup ENV=${{ env.ENV }}
-
-          # 2. Initialize the backend connection so Terraform can read the state
-          echo "🔄 Initializing Terraform Backend..."
-          make tf-init ENV=${{ env.ENV }}
-
-          # 3. Run the destroy command
-          echo "🧨 Nuking environment: ${{ env.ENV }}..."
-          cd infra/terraform && terraform destroy -auto-approve \
-            -var-file="env/${{ env.ENV }}.tfvars" 2>/dev/null || \
-            terraform destroy -auto-approve
+          make tf-destroy ENV=${{ env.ENV }} \
+            TF_VAR_ssh_public_key_content="${{ secrets.SSH_PUBLIC_KEY }}"
