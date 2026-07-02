@@ -9,7 +9,7 @@
     curl -sfL https://get.k3s.io | \
     INSTALL_K3S_VERSION="{{ k3s_version }}" \
     K3S_URL="https://{{ control_plane_ip }}:6443" \
-    # K3S_TOKEN="{{ hostvars[groups['control_plane'][0]]['node_token_stdout'] }}" \
+    # K3S_TOKEN="{{ hostvars[groups['control_plane'][0]]['node_token'] }}" \
     K3S_TOKEN="{{ hostvars[groups['control_plane'][0]]['node_token']['stdout'] }}" \
     sh -
   args:
