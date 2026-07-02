@@ -13,7 +13,7 @@ resource "aws_instance" "control_plane" {
   count = var.node_count.control_plane
 
   ami                    = data.aws_ssm_parameter.ubuntu.value
-  instance_type          = var.instance_type
+  instance_type          = var.control_plane_instance_type
   key_name               = var.ssh_key_name
   subnet_id              = var.public_subnet_ids[0]
   vpc_security_group_ids = [var.security_group_id]
@@ -45,7 +45,7 @@ resource "aws_instance" "workers" {
   count = var.node_count.workers
 
   ami                    = data.aws_ssm_parameter.ubuntu.value
-  instance_type          = var.instance_type
+  instance_type          = var.worker_instance_type
   key_name               = var.ssh_key_name
   subnet_id              = var.public_subnet_ids[count.index % length(var.public_subnet_ids)]
   vpc_security_group_ids = [var.security_group_id]

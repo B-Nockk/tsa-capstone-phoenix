@@ -28,3 +28,5 @@ TF_VAR_node_count={"control_plane": 1, "workers": 2}
 TF_VAR_vpc_cidr=10.0.0.0/16
 TF_VAR_allowed_ssh_ips=["154.120.93.90/32"]
 TF_VAR_enable_ssm=false
+TF_VAR_control_plane_instance_type=t3.medium
+TF_VAR_worker_instance_type=t3.micro

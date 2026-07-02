@@ -95,9 +95,13 @@ module "security" {
 module "compute" {
   source = "./modules/compute"
 
-  environment       = var.environment
-  project_name      = var.project_name
-  instance_type     = var.instance_type
+  environment  = var.environment
+  project_name = var.project_name
+
+  #   instance_type               = var.instance_type
+  control_plane_instance_type = coalesce(var.control_plane_instance_type, var.instance_type)
+  worker_instance_type        = coalesce(var.worker_instance_type, var.instance_type)
+
   node_count        = var.node_count
   public_subnet_ids = module.network.public_subnet_ids
   security_group_id = module.security.security_group_id
