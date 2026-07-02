@@ -104,6 +104,13 @@
         #       -i ~/.ssh/id_ed25519 ubuntu@51.20.66.3 exit 2>&1 | \
         #       grep -E "Offering|Authentications|Trying|debug1: Next|publickey"
 
+        - name: Verify SSH secrets are set
+          run: |
+            if [ -z "${{ secrets.SSH_PUBLIC_KEY }}" ]; then
+              echo "❌ SSH_PUBLIC_KEY secret is empty — refusing to let Terraform fall back to key generation"
+              exit 1
+            fi
+
         - name: Regenerate inventory from existing state
           if: github.event.inputs.run_terraform == 'false'
           env:
@@ -113,16 +120,14 @@
             make tf-init ENV=${{ env.ENV }}
             cd infra/terraform && terraform apply -auto-approve -target=local_file.ansible_inventory
 
-        - name: Verify SSH secrets are set
-          run: |
-            if [ -z "${{ secrets.SSH_PUBLIC_KEY }}" ]; then
-              echo "❌ SSH_PUBLIC_KEY secret is empty — refusing to let Terraform fall back to key generation"
-              exit 1
-            fi
-
         - name: Get CI runner public IP
           id: runner_ip
-          run: echo "ip=$(curl -s https://checkip.amazonaws.com)/32" >> "$GITHUB_OUTPUT"
+          run: |
+            RUNNER_IP="$(curl -s https://checkip.amazonaws.com)/32"
+            if [ -z "$RUNNER_IP" ] || [ "$RUNNER_IP" = "/32" ]; then
+              echo "❌ Failed to determine runner IP"; exit 1
+            fi
+            echo "ip=$RUNNER_IP" >> "$GITHUB_OUTPUT"
 
         - name: Build allowed SSH IPs list
           id: ssh_ips
@@ -143,10 +148,12 @@
           if: github.event.inputs.run_terraform != 'false'
           run: |
             make tf-backend-setup ENV=${{ env.ENV }}
+            ALLOWED_IPS=$(echo "$TF_VAR_allowed_ssh_ips" | jq -c '. + ["${{ steps.runner_ip.outputs.ip }}"]')
+            echo "Allowed SSH IPs: $ALLOWED_IPS"
             make tf-apply ENV=${{ env.ENV }} \
               TF_VAR_ssh_public_key_content="${{ secrets.SSH_PUBLIC_KEY }}" \
               TF_VAR_ssh_private_key_path="/home/runner/.ssh/id_ed25519" \
-              TF_VAR_allowed_ssh_ips='${{ steps.ssh_ips.outputs.list }}'
+              TF_VAR_allowed_ssh_ips="$ALLOWED_IPS"
 
         - name: Debug SSH negotiation
           if: github.event.inputs.run_terraform != 'false'
