@@ -16,7 +16,7 @@ data "aws_availability_zones" "available" {
 
 # Generate SSH key pair locally if it doesn't exist (Local Dev only)
 resource "tls_private_key" "ssh" {
-  count     = var.generate_ssh_key ? 1 : 0
+  count     = var.generate_ssh_key && var.ssh_public_key_content == "" ? 1 : 0
   algorithm = "ED25519"
 }
 
@@ -29,7 +29,7 @@ resource "null_resource" "ssh_dir" {
 }
 
 resource "local_file" "ssh_private" {
-  count           = var.generate_ssh_key ? 1 : 0
+  count           = var.generate_ssh_key && var.ssh_public_key_content == "" ? 1 : 0
   content         = tls_private_key.ssh[0].private_key_openssh
   filename        = var.ssh_private_key_path
   file_permission = "0600"
@@ -38,7 +38,7 @@ resource "local_file" "ssh_private" {
 }
 
 resource "local_file" "ssh_public" {
-  count           = var.generate_ssh_key ? 1 : 0
+  count           = var.generate_ssh_key && var.ssh_public_key_content == "" ? 1 : 0
   content         = tls_private_key.ssh[0].public_key_openssh
   filename        = var.ssh_public_key_path
   file_permission = "0644"

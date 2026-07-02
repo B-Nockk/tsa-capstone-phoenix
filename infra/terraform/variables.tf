@@ -29,7 +29,7 @@ variable "ssh_private_key_path" {
 variable "generate_ssh_key" {
   description = "Generate SSH key pair if it doesn't exist"
   type        = bool
-  default     = true
+  default     = false
 }
 
 # ============================================

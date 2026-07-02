@@ -103,6 +103,19 @@
               -i ~/.ssh/id_ed25519 ubuntu@51.20.66.3 exit 2>&1 | \
               grep -E "Offering|Authentications|Trying|debug1: Next|publickey"
 
+        - name: Regenerate inventory from existing state
+          if: github.event.inputs.run_terraform == 'false'
+          run: |
+            make tf-init ENV=${{ env.ENV }}
+            cd infra/terraform && terraform apply -auto-approve -target=local_file.ansible_inventory
+
+        - name: Verify SSH secrets are set
+          run: |
+            if [ -z "${{ secrets.SSH_PUBLIC_KEY }}" ]; then
+              echo "❌ SSH_PUBLIC_KEY secret is empty — refusing to let Terraform fall back to key generation"
+              exit 1
+            fi
+
         # --- STAGE 1: TERRAFORM ---
         - name: Provision Infrastructure
           if: github.event.inputs.run_terraform != 'false'
