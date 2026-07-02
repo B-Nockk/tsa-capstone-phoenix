@@ -6,13 +6,17 @@ provider "aws" {
   region = var.aws_region
 }
 
+# Dynamically fetch available AZs for the current region
+data "aws_availability_zones" "available" {
+  state = "available"
+}
 # ============================================
 # SSH KEY MANAGEMENT (Optimized for CI/CD)
 # ============================================
 
 # Generate SSH key pair locally if it doesn't exist (Local Dev only)
 resource "tls_private_key" "ssh" {
-  count     = var.generate_ssh_key ? 1 : 0
+  count     = var.generate_ssh_key && var.ssh_public_key_content == "" ? 1 : 0
   algorithm = "ED25519"
 }
 
@@ -25,7 +29,7 @@ resource "null_resource" "ssh_dir" {
 }
 
 resource "local_file" "ssh_private" {
-  count           = var.generate_ssh_key ? 1 : 0
+  count           = var.generate_ssh_key && var.ssh_public_key_content == "" ? 1 : 0
   content         = tls_private_key.ssh[0].private_key_openssh
   filename        = var.ssh_private_key_path
   file_permission = "0600"
@@ -34,7 +38,7 @@ resource "local_file" "ssh_private" {
 }
 
 resource "local_file" "ssh_public" {
-  count           = var.generate_ssh_key ? 1 : 0
+  count           = var.generate_ssh_key && var.ssh_public_key_content == "" ? 1 : 0
   content         = tls_private_key.ssh[0].public_key_openssh
   filename        = var.ssh_public_key_path
   file_permission = "0644"
@@ -64,8 +68,10 @@ module "network" {
   vpc_cidr             = var.vpc_cidr
   public_subnet_cidrs  = var.public_subnet_cidrs
   private_subnet_cidrs = var.private_subnet_cidrs
-  availability_zones   = var.availability_zones
   aws_region           = var.aws_region
+
+  # use dynamically fetched zones instead of a hardcoded variable
+  availability_zones = data.aws_availability_zones.available.names
 }
 
 # ============================================
@@ -98,6 +104,9 @@ module "compute" {
   ssh_key_name      = aws_key_pair.capstone.key_name
   k3s_version       = var.k3s_version
   aws_region        = var.aws_region
+
+  # ssm
+  iam_instance_profile = var.enable_ssm ? aws_iam_instance_profile.ssm[0].name : null
 }
 
 # ============================================
@@ -116,7 +125,7 @@ resource "local_file" "ansible_inventory" {
     k3s_token                 = module.compute.k3s_token
   })
 
-  filename = "${path.module}/../../ansible/inventory/${var.environment}/hosts.ini"
+  filename = "${path.module}/../ansible/inventory/${var.environment}/hosts.ini"
 
   depends_on = [module.compute]
 }

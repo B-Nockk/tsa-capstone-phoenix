@@ -1,21 +1,29 @@
 # .gh_vars
 ENV=dev
 CLOUD=aws
-NAMESPACE=taskapp-dev
-DOMAIN_NAME=taskapp.local
-ARGOCD_DOMAIN=argocd.local
+NAMESPACE=taskapp
+DOMAIN_NAME=nockk-tsa-capstone.duckdns.org
+ARGOCD_DOMAIN=argocd.nockk-tsa-capstone.duckdns.org
 CERT_EMAIL=ebrusontop@gmail.com
 GITOPS_REPO_URL=https://github.com/B-Nockk/tsa-capstone-phoenix.git
 GITOPS_TARGET_REVISION=main
 ARGOCD_NAMESPACE=argocd
 
-# Terraform Vars
-TF_VAR_aws_region=us-east-1
+# System/Make Toggles
+ENABLE_REMOTE_STATE=true
+DUCKDNS_DOMAIN=nockk-tsa-capstone
+ACTIONS_STEP_DEBUG=true
+ACTIONS_RUNNER_DEBUG=true
+
+# NOTE:: ADD this to use a controlled bucket. default pattern is: $(TF_VAR_project_name)-tfstate-$(AWS_ACCOUNT_ID)-$(ENV)
+# controlled by infra.mk
+# TF_STATE_BUCKET=tsa-capstone-tfstate-dev
+
+# Terraform Specific Variables (Must be lowercase after TF_VAR_)
+TF_VAR_aws_region=eu-north-1
 TF_VAR_environment=dev
 TF_VAR_project_name=tsa-capstone
 TF_VAR_instance_type=t3.micro
-# Notice how it perfectly handles JSON objects without breaking!
 TF_VAR_node_count={"control_plane": 1, "workers": 2}
 TF_VAR_vpc_cidr=10.0.0.0/16
 TF_VAR_allowed_ssh_ips=["0.0.0.0/0"]
-DUCKDNS_DOMAIN=tsa-capstone # Optional

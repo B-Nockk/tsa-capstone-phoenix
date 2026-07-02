@@ -1,7 +1,8 @@
 ---
 - name: Get control plane private IP from inventory
   set_fact:
-    control_plane_ip: "{{ hostvars[groups['control_plane'][0]]['ansible_default_ipv4']['address'] }}"
+    # control_plane_ip: "{{ hostvars[groups['control_plane'][0]]['ansible_facts']['default_ipv4']['address'] }}"
+    control_plane_ip: "{{ control_plane_private_ip }}"
 
 - name: Install k3s agent
   shell: |

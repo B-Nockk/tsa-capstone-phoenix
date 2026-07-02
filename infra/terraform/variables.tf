@@ -5,13 +5,13 @@
 variable "ssh_key_name" {
   description = "Name of the SSH key pair in AWS"
   type        = string
-  default     = "tsa-capstone-key"
+  default     = "tsa-capstone-project"
 }
 
 variable "ssh_public_key_path" {
   description = "Path to the SSH public key file"
   type        = string
-  default     = "~/.ssh/tsa-capstone/tsa-capstone-key.pub"
+  default     = "~/.ssh/tsa-capstone/tsa-capstone-project.pub"
 }
 
 variable "ssh_public_key_content" {
@@ -23,13 +23,13 @@ variable "ssh_public_key_content" {
 variable "ssh_private_key_path" {
   description = "Path to the SSH private key file"
   type        = string
-  default     = "~/.ssh/tsa-capstone/tsa-capstone-key"
+  default     = "~/.ssh/tsa-capstone/tsa-capstone-project"
 }
 
 variable "generate_ssh_key" {
   description = "Generate SSH key pair if it doesn't exist"
   type        = bool
-  default     = true
+  default     = false
 }
 
 # ============================================
@@ -58,11 +58,11 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "availability_zones" {
-  description = "Availability zones for HA"
-  type        = list(string)
-  default     = ["us-east-1a", "us-east-1b"]
-}
+# variable "availability_zones" {
+#   description = "Availability zones for HA"
+#   type        = list(string)
+#   default     = ["us-east-1a", "us-east-1b"]
+# }
 
 # ============================================
 # COMPUTE CONFIGURATION (AWS Free Tier)
@@ -164,4 +164,21 @@ variable "state_lock_table" {
   description = "DynamoDB table for state locking"
   type        = string
   default     = "terraform-locks"
+}
+
+variable "enable_ssm" {
+  description = "Attach IAM instance profile + install SSM agent for out-of-band access"
+  type        = bool
+  default     = true
+}
+
+variable "ssm_role_name" {
+  description = "Name for the SSM IAM role"
+  type        = string
+  default     = "tsa-capstone-ssm-role"
+}
+
+variable "iam_instance_profile" {
+  type    = string
+  default = null
 }

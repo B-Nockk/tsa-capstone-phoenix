@@ -61,9 +61,9 @@ inject_from_file() {
 
         echo -e "  Setting ${CYAN}$type${NC}: $key..."
         if [ "$type" == "secret" ]; then
-            echo "$value" | gh secret set "$key" --repo "$REPO" --body -
+            echo -n "$value" | gh secret set "$key" --repo "$REPO"
         else
-            echo "$value" | gh variable set "$key" --repo "$REPO" --body -
+            echo -n "$value" | gh variable set "$key" --repo "$REPO"
         fi
     done < "$file"
     echo ""

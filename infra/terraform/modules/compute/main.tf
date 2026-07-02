@@ -21,6 +21,10 @@ resource "aws_instance" "control_plane" {
   # Use public IP for internet access
   associate_public_ip_address = true
 
+  #   ssm agent
+  iam_instance_profile = var.iam_instance_profile
+
+
   tags = {
     Name        = "${var.project_name}-${var.environment}-control-plane"
     Environment = var.environment
@@ -47,6 +51,9 @@ resource "aws_instance" "workers" {
   vpc_security_group_ids = [var.security_group_id]
 
   associate_public_ip_address = true
+
+  #   ssm agent
+  iam_instance_profile = var.iam_instance_profile
 
   tags = {
     Name        = "${var.project_name}-${var.environment}-worker-${count.index + 1}"

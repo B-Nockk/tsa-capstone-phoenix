@@ -29,8 +29,8 @@ LOCAL_SECRETS    	:= $(SECRETS_DIR)/$(ENV).env
 HELM_VALUES_FILE 	:= $(HELM_DIR)/values-$(ENV).yaml
 
 # Add these variables to common.mk if not already there
-SSH_PRIVATE_KEY_PATH ?= ~/.ssh/tsa-capstone/tsa-capstone-key
-SSH_PUBLIC_KEY_PATH  ?= ~/.ssh/tsa-capstone/tsa-capstone-key.pub
+SSH_PRIVATE_KEY_PATH ?= ~/.ssh/tsa-capstone/tsa-capstone-project
+SSH_PUBLIC_KEY_PATH  ?= ~/.ssh/tsa-capstone/tsa-capstone-project.pub
 
 define check_cmd
 	@command -v $(1) >/dev/null 2>&1 || { echo "$(RED)❌ $(1) not found$(RESET)"; exit 1; }
@@ -81,6 +81,12 @@ setup-ci-deps: ## Install all required tools for CI/CD runners (Ubuntu)
 	@echo "$(GREEN)📦 Installing CI dependencies...$(RESET)"
 	@sudo apt-get update -qq
 	@sudo apt-get install -y -qq apache2-utils jq unzip
+
+	@# terraform
+	@echo "  Installing terraform..."
+	@wget -q https://releases.hashicorp.com/terraform/1.8.0/terraform_1.8.0_linux_amd64.zip
+	@unzip -q terraform_1.8.0_linux_amd64.zip
+	@sudo install -m 755 terraform /usr/local/bin/terraform && rm terraform terraform_1.8.0_linux_amd64.zip
 
 	@# kubectl
 	@echo "  Installing kubectl..."

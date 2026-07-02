@@ -25,9 +25,9 @@ public_subnet_cidrs = ["10.0.1.0/24", "10.0.2.0/24"]
 private_subnet_cidrs = ["10.0.10.0/24", "10.0.11.0/24"]
 
 # SSH Configuration
-ssh_key_name = "tsa-capstone-key"
-ssh_public_key_path = "~/.ssh/tsa-capstone/tsa-capstone-key.pub"
-ssh_private_key_path = "~/.ssh/tsa-capstone/tsa-capstone-key"
+ssh_key_name = "tsa-capstone-project"
+ssh_public_key_path = "~/.ssh/tsa-capstone/tsa-capstone-project.pub"
+ssh_private_key_path = "~/.ssh/tsa-capstone/tsa-capstone-project"
 generate_ssh_key = true
 
 # Security - REPLACE WITH YOUR IP!

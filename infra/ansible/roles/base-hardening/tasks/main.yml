@@ -1,12 +1,46 @@
 ---
+- name: Wait for cloud-init to complete
+  command: cloud-init status --wait
+  changed_when: false
+
+- name: Stop and disable automatic apt timers to prevent lock contention
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop:
+    - apt-daily.timer
+    - apt-daily-upgrade.timer
+    - apt-daily.service
+    - apt-daily-upgrade.service
+    - unattended-upgrades.service
+  failed_when: false
+
+- name: Wait for any in-progress apt lock to clear
+  ansible.builtin.shell: |
+    while fuser /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/cache/apt/archives/lock >/dev/null 2>&1; do
+      sleep 5
+    done
+  changed_when: false
+
 - name: Update apt cache
   apt:
     update_cache: yes
-    cache_valid_time: 3600
+    # cache_valid_time: 3600
+    lock_timeout: 500
 
 - name: Install base packages
   apt:
     name: "{{ packages_base }}"
+    state: present
+    lock_timeout: 500
+
+# TODO:: needs an IAM instance profile with AmazonSSMManagedInstanceCore attached in the compute module
+#   - worth adding regardless, it's the standard "I locked myself out" escape hatch for EC2).
+#   - Then: aws ssm start-session --target <instance-id> gets you a shell with zero dependency on SSH working.
+- name: Install SSM agent (out-of-band access, bypasses SSH/fail2ban lockouts)
+  apt:
+    name: amazon-ssm-agent
     state: present
 
 - name: Set timezone
@@ -76,22 +110,22 @@
 - name: Disable root SSH login
   lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: '^PermitRootLogin'
-    line: 'PermitRootLogin no'
+    regexp: "^PermitRootLogin"
+    line: "PermitRootLogin no"
   notify: restart ssh
 
 - name: Disable password authentication
   lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: '^PasswordAuthentication'
-    line: 'PasswordAuthentication no'
+    regexp: "^PasswordAuthentication"
+    line: "PasswordAuthentication no"
   notify: restart ssh
 
 - name: Enable SSH key authentication
   lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: '^PubkeyAuthentication'
-    line: 'PubkeyAuthentication yes'
+    regexp: "^PubkeyAuthentication"
+    line: "PubkeyAuthentication yes"
   notify: restart ssh
 
 - name: Install Docker prerequisites
