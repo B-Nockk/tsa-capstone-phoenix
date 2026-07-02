@@ -165,3 +165,20 @@ variable "state_lock_table" {
   type        = string
   default     = "terraform-locks"
 }
+
+variable "enable_ssm" {
+  description = "Attach IAM instance profile + install SSM agent for out-of-band access"
+  type        = bool
+  default     = true
+}
+
+variable "ssm_role_name" {
+  description = "Name for the SSM IAM role"
+  type        = string
+  default     = "tsa-capstone-ssm-role"
+}
+
+variable "iam_instance_profile" {
+  type    = string
+  default = null
+}

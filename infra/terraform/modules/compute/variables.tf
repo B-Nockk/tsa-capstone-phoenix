@@ -45,3 +45,9 @@ variable "ssh_key_name" {
   description = "SSH key pair name in AWS"
   type        = string
 }
+
+# ssm agent
+variable "iam_instance_profile" {
+  type    = string
+  default = null
+}

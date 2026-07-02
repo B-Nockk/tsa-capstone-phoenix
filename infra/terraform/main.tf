@@ -104,6 +104,9 @@ module "compute" {
   ssh_key_name      = aws_key_pair.capstone.key_name
   k3s_version       = var.k3s_version
   aws_region        = var.aws_region
+
+  # ssm
+  iam_instance_profile = var.enable_ssm ? aws_iam_instance_profile.ssm[0].name : null
 }
 
 # ============================================
