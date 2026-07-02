@@ -71,14 +71,14 @@
             aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
             aws-region: ${{ env.TF_VAR_aws_region }}
 
-        - name: Debug SSH Key Format
-          run: |
-            KEY_LINES=$(echo "${{ secrets.SSH_PRIVATE_KEY }}" | wc -l)
-            echo "The private key has $KEY_LINES lines."
-            if [ "$KEY_LINES" -lt 5 ]; then
-              echo "❌ ERROR: Private key is corrupted or missing line breaks!"
-              exit 1
-            fi
+        # - name: Debug SSH Key Format
+        #   run: |
+        #     KEY_LINES=$(echo "${{ secrets.SSH_PRIVATE_KEY }}" | wc -l)
+        #     echo "The private key has $KEY_LINES lines."
+        #     if [ "$KEY_LINES" -lt 5 ]; then
+        #       echo "❌ ERROR: Private key is corrupted or missing line breaks!"
+        #       exit 1
+        #     fi
 
         - name: Setup SSH Key for CI
           run: |
@@ -98,11 +98,11 @@
             echo "${{ secrets.SSH_PUBLIC_KEY }}" > /tmp/expected.pub
             ssh-keygen -lf /tmp/expected.pub
 
-        - name: Debug SSH negotiation
-          run: |
-            ssh -vvv -o StrictHostKeyChecking=no -o BatchMode=yes \
-              -i ~/.ssh/id_ed25519 ubuntu@51.20.66.3 exit 2>&1 | \
-              grep -E "Offering|Authentications|Trying|debug1: Next|publickey"
+        # - name: Debug SSH negotiation
+        #   run: |
+        #     ssh -vvv -o StrictHostKeyChecking=no -o BatchMode=yes \
+        #       -i ~/.ssh/id_ed25519 ubuntu@51.20.66.3 exit 2>&1 | \
+        #       grep -E "Offering|Authentications|Trying|debug1: Next|publickey"
 
         - name: Regenerate inventory from existing state
           if: github.event.inputs.run_terraform == 'false'
@@ -147,6 +147,14 @@
               TF_VAR_ssh_public_key_content="${{ secrets.SSH_PUBLIC_KEY }}" \
               TF_VAR_ssh_private_key_path="/home/runner/.ssh/id_ed25519" \
               TF_VAR_allowed_ssh_ips='${{ steps.ssh_ips.outputs.list }}'
+
+        - name: Debug SSH negotiation
+          if: github.event.inputs.run_terraform != 'false'
+          run: |
+            IP=$(cd infra/terraform && terraform output -json control_plane_public_ips | jq -r '.[0]')
+            ssh -vvv -o StrictHostKeyChecking=no -o BatchMode=yes \
+              -i ~/.ssh/id_ed25519 ubuntu@"$IP" exit 2>&1 | \
+              grep -E "Offering|Authentications|Trying|debug1: Next|publickey" || true
 
         # --- STAGE 2: ANSIBLE & KUBECONFIG ---
         - name: Configure Cluster
