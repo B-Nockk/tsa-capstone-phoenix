@@ -28,30 +28,38 @@
   retries: 30
   delay: 5
 
-# --- CALICO CNI INSTALLATION ---
-# - name: Install Calico Tigera Operator
-#   shell: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml
-#   register: calico_operator
-#   failed_when: calico_operator.rc != 0 and 'AlreadyExists' not in calico_operator.stderr
-#   changed_when: "'created' in calico_operator.stdout"
+- name: Install Calico Tigera Operator (CRDs + operator deployment)
+  command: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml
+  register: calico_operator_result
+  failed_when: calico_operator_result.rc != 0 and 'AlreadyExists' not in calico_operator_result.stderr
+  changed_when: "'created' in calico_operator_result.stdout"
 
-- name: Install Calico Custom Resources
-  command: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/custom-resources.yaml
-  register: calico_cr_result
-  until: calico_cr_result.rc == 0
+- name: Wait for Tigera Operator CRDs to be established
+  command: >
+    kubectl wait --for=condition=established --timeout=60s
+    crd/installations.operator.tigera.io crd/apiservers.operator.tigera.io
+  register: crd_wait
+  until: crd_wait.rc == 0
   retries: 6
   delay: 10
+  changed_when: false
 
-- name: Wait for Tigera Operator to be ready
-  pause:
-    seconds: 10
+- name: Wait for Tigera Operator deployment to be ready
+  command: kubectl -n tigera-operator rollout status deployment/tigera-operator --timeout=60s
+  register: operator_rollout
+  until: operator_rollout.rc == 0
+  retries: 6
+  delay: 10
+  changed_when: false
 
 - name: Install Calico Custom Resources
-  shell: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/custom-resources.yaml
-  register: calico_cr
-  failed_when: calico_cr.rc != 0 and 'AlreadyExists' not in calico_cr.stderr
-  changed_when: "'created' in calico_cr.stdout"
-# ------------------------------------
+  command: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/custom-resources.yaml
+  register: calico_cr_result
+  until: calico_cr_result.rc == 0 or 'AlreadyExists' in calico_cr_result.stderr
+  retries: 6
+  delay: 10
+  failed_when: calico_cr_result.rc != 0 and 'AlreadyExists' not in calico_cr_result.stderr
+  changed_when: "'created' in calico_cr_result.stdout"
 
 - name: Get node token for workers
   shell: cat /var/lib/rancher/k3s/server/node-token
