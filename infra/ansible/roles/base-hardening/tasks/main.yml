@@ -26,14 +26,16 @@
 - name: Update apt cache
   apt:
     update_cache: yes
-    # cache_valid_time: 3600
+    cache_valid_time: 3600
     lock_timeout: 500
+  throttle: 1 # Forces Ansible to update packages one server at a time
 
 - name: Install base packages
   apt:
     name: "{{ packages_base }}"
     state: present
     lock_timeout: 500
+  throttle: 1 # Keeps memory spikes contained
 
 # TODO:: needs an IAM instance profile with AmazonSSMManagedInstanceCore attached in the compute module
 #   - worth adding regardless, it's the standard "I locked myself out" escape hatch for EC2).
