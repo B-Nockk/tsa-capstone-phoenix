@@ -105,6 +105,9 @@
 
         - name: Regenerate inventory from existing state
           if: github.event.inputs.run_terraform == 'false'
+          env:
+            TF_VAR_ssh_public_key_content: ${{ secrets.SSH_PUBLIC_KEY }}
+            TF_VAR_ssh_private_key_path: /home/runner/.ssh/id_ed25519
           run: |
             make tf-init ENV=${{ env.ENV }}
             cd infra/terraform && terraform apply -auto-approve -target=local_file.ansible_inventory
