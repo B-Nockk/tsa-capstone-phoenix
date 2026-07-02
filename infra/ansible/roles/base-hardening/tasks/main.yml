@@ -3,10 +3,30 @@
   command: cloud-init status --wait
   changed_when: false
 
+- name: Stop and disable automatic apt timers to prevent lock contention
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop:
+    - apt-daily.timer
+    - apt-daily-upgrade.timer
+    - apt-daily.service
+    - apt-daily-upgrade.service
+    - unattended-upgrades.service
+  failed_when: false
+
+- name: Wait for any in-progress apt lock to clear
+  ansible.builtin.shell: |
+    while fuser /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/cache/apt/archives/lock >/dev/null 2>&1; do
+      sleep 5
+    done
+  changed_when: false
+
 - name: Update apt cache
   apt:
     update_cache: yes
-    cache_valid_time: 3600
+    # cache_valid_time: 3600
     lock_timeout: 500
 
 - name: Install base packages
