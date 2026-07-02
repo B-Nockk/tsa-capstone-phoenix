@@ -1,7 +1,9 @@
 ---
 - name: Get control plane private IP
   set_fact:
-    control_plane_ip: "{{ ansible_default_ipv4.address }}"
+    # control_plane_ip: "{{ ansible_default_ipv4.address }}"
+    # control_plane_ip: "{{ ansible_facts['default_ipv4']['address'] }}"
+    control_plane_ip: "{{ control_plane_private_ip }}"
 
 - name: Create k3s install directory
   file:

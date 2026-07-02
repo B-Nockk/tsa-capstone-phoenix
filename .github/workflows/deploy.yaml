@@ -120,6 +120,24 @@
               exit 1
             fi
 
+        - name: Get CI runner public IP
+          id: runner_ip
+          run: echo "ip=$(curl -s https://checkip.amazonaws.com)/32" >> "$GITHUB_OUTPUT"
+
+        - name: Build allowed SSH IPs list
+          id: ssh_ips
+          run: |
+            RUNNER_IP="$(curl -s https://checkip.amazonaws.com)/32"
+            if [ -z "$RUNNER_IP" ] || [ "$RUNNER_IP" = "/32" ]; then
+              echo "❌ Failed to determine runner IP"; exit 1
+            fi
+            ADMIN_IP="${{ vars.ADMIN_SSH_IP }}"
+            if [ -n "$ADMIN_IP" ]; then
+              echo "list=[\"$RUNNER_IP\", \"$ADMIN_IP\"]" >> "$GITHUB_OUTPUT"
+            else
+              echo "list=[\"$RUNNER_IP\"]" >> "$GITHUB_OUTPUT"
+            fi
+
         # --- STAGE 1: TERRAFORM ---
         - name: Provision Infrastructure
           if: github.event.inputs.run_terraform != 'false'
@@ -127,7 +145,8 @@
             make tf-backend-setup ENV=${{ env.ENV }}
             make tf-apply ENV=${{ env.ENV }} \
               TF_VAR_ssh_public_key_content="${{ secrets.SSH_PUBLIC_KEY }}" \
-              TF_VAR_ssh_private_key_path="/home/runner/.ssh/id_ed25519"
+              TF_VAR_ssh_private_key_path="/home/runner/.ssh/id_ed25519" \
+              TF_VAR_allowed_ssh_ips='${{ steps.ssh_ips.outputs.list }}'
 
         # --- STAGE 2: ANSIBLE & KUBECONFIG ---
         - name: Configure Cluster
