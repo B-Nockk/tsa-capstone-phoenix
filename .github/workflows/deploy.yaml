@@ -97,6 +97,12 @@
             echo "${{ secrets.SSH_PUBLIC_KEY }}" > /tmp/expected.pub
             ssh-keygen -lf /tmp/expected.pub
 
+        - name: Debug SSH negotiation
+          run: |
+            ssh -vvv -o StrictHostKeyChecking=no -o BatchMode=yes \
+              -i ~/.ssh/id_ed25519 ubuntu@51.20.66.3 exit 2>&1 | \
+              grep -E "Offering|Authentications|Trying|debug1: Next|publickey"
+
         # --- STAGE 1: TERRAFORM ---
         - name: Provision Infrastructure
           if: github.event.inputs.run_terraform != 'false'

@@ -5,7 +5,10 @@ ANSIBLE_DIR      ?= $(INFRA_DIR)/ansible
 ANSIBLE_INV      ?= $(ANSIBLE_DIR)/inventory/$(ENV)/hosts.ini
 ANSIBLE_PLAYBOOK ?= $(ANSIBLE_DIR)/playbooks/site.yml
 ANSIBLE_USER     ?= ubuntu
-ANSIBLE_SSH_ARGS ?= -o StrictHostKeyChecking=no
+# ANSIBLE_SSH_ARGS ?= -o StrictHostKeyChecking=no
+
+ANSIBLE_SSH_KEY  ?= $(HOME)/.ssh/id_ed25519
+ANSIBLE_SSH_ARGS ?= -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -i $(ANSIBLE_SSH_KEY)
 
 .PHONY: help-ansible
 help-ansible:
