@@ -70,13 +70,22 @@
             aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
             aws-region: ${{ env.TF_VAR_aws_region }}
 
+        - name: Debug SSH Key Format
+          run: |
+            KEY_LINES=$(echo "${{ secrets.SSH_PRIVATE_KEY }}" | wc -l)
+            echo "The private key has $KEY_LINES lines."
+            if [ "$KEY_LINES" -lt 5 ]; then
+              echo "❌ ERROR: Private key is corrupted or missing line breaks!"
+              exit 1
+            fi
+
         - name: Setup SSH Key for CI
           run: |
             mkdir -p ~/.ssh
-            cat << 'EOF' > ~/.ssh/id_rsa
+            cat << 'EOF' > ~/.ssh/id_ed25519
             ${{ secrets.SSH_PRIVATE_KEY }}
             EOF
-            chmod 600 ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_ed25519
 
         # --- STAGE 1: TERRAFORM ---
         - name: Provision Infrastructure
@@ -85,7 +94,7 @@
             make tf-backend-setup ENV=${{ env.ENV }}
             make tf-apply ENV=${{ env.ENV }} \
               TF_VAR_ssh_public_key_content="${{ secrets.SSH_PUBLIC_KEY }}" \
-              TF_VAR_ssh_private_key_path="/home/runner/.ssh/id_rsa"
+              TF_VAR_ssh_private_key_path="/home/runner/.ssh/id_ed25519"
 
         # --- STAGE 2: ANSIBLE & KUBECONFIG ---
         - name: Configure Cluster

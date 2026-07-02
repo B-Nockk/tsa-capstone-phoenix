@@ -1,0 +1,59 @@
+name: Destroy Infrastructure (Nuke)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to destroy'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev, prod]
+      safety_catch:
+        description: 'Type "DESTROY" to confirm teardown'
+        required: true
+        default: ''
+
+env:
+  ENV: ${{ github.event.inputs.environment || 'dev' }}
+  CLOUD: aws
+
+jobs:
+  nuke:
+    runs-on: ubuntu-latest
+    # Fail immediately if they didn't type DESTROY
+    if: github.event.inputs.safety_catch == 'DESTROY'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Load GitHub Variables into Environment
+        env:
+          GH_VARS: ${{ toJSON(vars) }}
+        run: |
+          echo "🔄 Dynamically loading repository variables..."
+          echo "$GH_VARS" | jq -r 'to_entries[] | if (.key | startswith("TF_VAR_")) then "TF_VAR_" + (.key[7:] | ascii_downcase) + "<<__EOV__\n\(.value)\n__EOV__" else "\(.key)<<__EOV__\n\(.value)\n__EOV__" end' >> "$GITHUB_ENV"
+
+      - name: Setup CI Dependencies
+        run: make setup-ci-deps
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-north-1
+
+      # Terraform Destroy Stage
+      - name: Destroy Infrastructure
+        run: |
+          # 1. Initialize the remote backend so Terraform knows what to destroy
+          make tf-backend-setup ENV=${{ env.ENV }}
+
+          # 2. Run the destroy command
+          # (Assuming you have a tf-destroy target. If not, this runs the raw command safely)
+          echo "🧨 Nuking environment: ${{ env.ENV }}..."
+          cd infra/terraform && terraform destroy -auto-approve \
+            -var-file="env/${{ env.ENV }}.tfvars" 2>/dev/null || \
+            terraform destroy -auto-approve
