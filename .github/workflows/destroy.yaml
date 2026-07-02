@@ -48,11 +48,14 @@ jobs:
       # Terraform Destroy Stage
       - name: Destroy Infrastructure
         run: |
-          # 1. Initialize the remote backend so Terraform knows what to destroy
+          # 1. Verify/Create the S3 bucket and DynamoDB table (if missing)
           make tf-backend-setup ENV=${{ env.ENV }}
 
-          # 2. Run the destroy command
-          # (Assuming you have a tf-destroy target. If not, this runs the raw command safely)
+          # 2. Initialize the backend connection so Terraform can read the state
+          echo "🔄 Initializing Terraform Backend..."
+          make tf-init ENV=${{ env.ENV }}
+
+          # 3. Run the destroy command
           echo "🧨 Nuking environment: ${{ env.ENV }}..."
           cd infra/terraform && terraform destroy -auto-approve \
             -var-file="env/${{ env.ENV }}.tfvars" 2>/dev/null || \
