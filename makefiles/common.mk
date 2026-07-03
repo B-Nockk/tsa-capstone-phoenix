@@ -24,10 +24,10 @@ HELM_DIR         	?= helm/taskapp
 GITOPS_DIR       	?= gitops
 SECRETS_DIR      	?= .secrets
 LOGS_DIR         	?= logs
+CHECK_OPTIONAL_DEPS	?= false
 
 LOCAL_SECRETS    	:= $(SECRETS_DIR)/$(ENV).env
 HELM_VALUES_FILE 	:= $(HELM_DIR)/values-$(ENV).yaml
-
 # Add these variables to common.mk if not already there
 SSH_PRIVATE_KEY_PATH ?= ~/.ssh/tsa-capstone/tsa-capstone-project
 SSH_PUBLIC_KEY_PATH  ?= ~/.ssh/tsa-capstone/tsa-capstone-project.pub
@@ -51,9 +51,14 @@ check-tools: ## Check if required tools are installed
 	$(call check_cmd,ansible)
 	$(call check_cmd,kubectl)
 	$(call check_cmd,helm)
-	$(call check_cmd,k3d)
 	$(call check_cmd,kubeseal)
 	$(call check_cmd,htpasswd)
+# explicitly declared optional deps that can skip on CI or remote environments if docker or k3d is not needed
+# depending on which is used
+ifeq ($(CHECK_OPTIONAL_DEPS),true)
+	$(call check_cmd,docker)
+	$(call check_cmd,k3d)
+endif
 	@echo "$(GREEN)✅ All tools installed$(RESET)"
 
 .PHONY: version
