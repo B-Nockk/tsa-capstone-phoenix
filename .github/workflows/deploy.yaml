@@ -202,27 +202,43 @@
         #     cp infra/ansible/kubeconfig-${{ env.ENV }}.yaml ~/.kube/config
         #     kubectl get nodes
 
+        # - name: Configure Cluster
+        #   if: github.event.inputs.run_ansible != 'false'
+        #   env:
+        #     # THIS IS THE SINGLE SOURCE OF TRUTH
+        #     KUBE_PATH: ${{ github.workspace }}/infra/ansible/kubeconfig-${{ env.ENV }}.yaml
+        #   run: |
+        #     make ans-run ENV=${{ env.ENV }} INSTALL_DOCKER=${{ github.event.inputs.install_docker }} KUBECONFIG_DEST=${{ env.KUBE_PATH }}
+        #     make tf-output > /dev/null
+        #     mkdir -p ~/.kube
+
+        #     # Use the exact same variable for the copy!
+        #     cp ${{ env.KUBE_PATH }} ~/.kube/config
+
+        #     # Prove the cluster is alive
+        #     kubectl get nodes
+
         - name: Configure Cluster
           if: github.event.inputs.run_ansible != 'false'
-          env:
-            # THIS IS THE SINGLE SOURCE OF TRUTH
-            KUBE_PATH: ${{ github.workspace }}/infra/ansible/kubeconfig-${{ env.ENV }}.yaml
           run: |
-            make ans-run ENV=${{ env.ENV }} INSTALL_DOCKER=${{ github.event.inputs.install_docker }} KUBECONFIG_DEST=${{ env.KUBE_PATH }}
+            # Make knows exactly where to put the file based on KUBECONFIG_PATH
+            make ans-run ENV=${{ env.ENV }} INSTALL_DOCKER=${{ github.event.inputs.install_docker }}
             make tf-output > /dev/null
-            mkdir -p ~/.kube
 
-            # Use the exact same variable for the copy!
-            cp ${{ env.KUBE_PATH }} ~/.kube/config
-
-            # Prove the cluster is alive
-            kubectl get nodes
+            # Make automatically uses KUBECONFIG for kubectl
+            make k8s-get-nodes ENV=${{ env.ENV }}
 
         # --- STAGE 3: PLATFORM & DOMAIN ---
-        - name: Setup Platform (Ingress, Cert-Manager)
+        # - name: Setup Platform (Ingress, Cert-Manager)
+        #   if: github.event.inputs.deploy_argo != 'false'
+        #   run: |
+        #     make sys-setup ARGOCD_RESET_PASSWORD=false ENV=${{ env.ENV }} CLOUD=aws
+
+        - name: Setup Platform (Ingress, Cert-Manager, Sealed Secrets)
           if: github.event.inputs.deploy_argo != 'false'
           run: |
-            make sys-setup ARGOCD_RESET_PASSWORD=false ENV=${{ env.ENV }} CLOUD=aws
+            # Helm automatically inherits KUBECONFIG from the Makefile!
+            make sys-setup ENV=${{ env.ENV }} CLOUD=aws ARGOCD_RESET_PASSWORD=false
 
         - name: Manage Domain (DuckDNS)
           if: github.event.inputs.use_duckdns == 'true'

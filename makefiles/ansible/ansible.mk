@@ -19,6 +19,8 @@ ANSIBLE_SSH_ARGS ?= -o StrictHostKeyChecking=no -o IdentitiesOnly=yes
 
 # 🎯 Force Precedence: Extra Vars (-e) completely override internal inventory host variables
 ANSIBLE_OPTS     	?= -e "ansible_ssh_private_key_file=$(ANSIBLE_SSH_KEY)"
+
+# NOTE:: This variable will be overriden by the global path alternative defined in common.mk
 KUBECONFIG_DEST		?= $(PWD)/infra/ansible/kubeconfig-$(ENV).yaml
 .PHONY: help-ansible
 help-ansible:
@@ -42,7 +44,7 @@ ans-ping: ans-check ## Ping all nodes
 .PHONY: ans-run
 ans-run: ans-check ## Run main playbook
 	@cd $(ANSIBLE_DIR) && ansible-playbook -i inventory/$(ENV)/hosts.ini playbooks/site.yml \
-		-e "install_docker=$(INSTALL_DOCKER) env=$(ENV) kubeconfig_dest=$(KUBECONFIG_DEST) api_ips=$(API_IPS)" \
+		-e "install_docker=$(INSTALL_DOCKER) kubeconfig_dest=$(KUBECONFIG_PATH) api_ips=$(API_IPS)" \
 		--user=$(ANSIBLE_USER) \
 		--ssh-extra-args='$(ANSIBLE_SSH_ARGS)' \
 		$(ANSIBLE_OPTS)

@@ -32,6 +32,14 @@ HELM_VALUES_FILE 	:= $(HELM_DIR)/values-$(ENV).yaml
 SSH_PRIVATE_KEY_PATH ?= ~/.ssh/tsa-capstone/tsa-capstone-project
 SSH_PUBLIC_KEY_PATH  ?= ~/.ssh/tsa-capstone/tsa-capstone-project.pub
 
+# ============================================
+# CLUSTER AUTHENTICATION (Single Source of Truth)
+# ============================================
+# NOTE:: We build the absolute path to the kubeconfig dynamically based on the environment.
+# NOTE:: Exporting it forces helm and kubectl to automatically use it for every target.
+KUBECONFIG_PATH ?= $(PWD)/infra/ansible/kubeconfig-$(ENV).yaml
+export KUBECONFIG = $(KUBECONFIG_PATH)
+
 define check_cmd
 	@command -v $(1) >/dev/null 2>&1 || { echo "$(RED)❌ $(1) not found$(RESET)"; exit 1; }
 endef
