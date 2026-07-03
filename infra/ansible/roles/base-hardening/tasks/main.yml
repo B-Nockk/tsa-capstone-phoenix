@@ -96,6 +96,16 @@
     state: enabled
     policy: deny
 
+- name: Configure UFW - Allow K8s packet forwarding in kernel
+  ansible.builtin.lineinfile:
+    path: /etc/default/ufw
+    regexp: "^DEFAULT_FORWARD_POLICY="
+    line: 'DEFAULT_FORWARD_POLICY="ACCEPT"'
+
+- name: Reload UFW to apply forwarding policy
+  ansible.builtin.command: ufw reload
+  changed_when: false
+
 # ==============================================================================
 # SECURITY & HARDENING
 # ==============================================================================
