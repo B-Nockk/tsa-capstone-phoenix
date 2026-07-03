@@ -42,7 +42,7 @@
     cache_valid_time: 86400
     lock_timeout: 800 # Bumped to 20 mins
   ignore_errors: true
-  # throttle: 1 # Forces Ansible to update packages one server at a time
+  throttle: 1 # Forces Ansible to update packages one server at a time
 
 - name: Install base packages
   ansible.builtin.apt:
