@@ -37,4 +37,4 @@
 
 - name: Display node status
   debug:
-    msg: "Worker node {{ ansible_hostname }} joined successfully!"
+    msg: "Worker node {{ ansible_facts['hostname'] }} joined successfully!"

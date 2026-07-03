@@ -76,12 +76,18 @@
     sed -i 's/127.0.0.1/{{ control_plane_ip }}/g' /tmp/k3s.yaml
     chmod 644 /tmp/k3s.yaml
 
-- name: Fetch kubeconfig to local
-  fetch:
-    src: /tmp/k3s.yaml
-    dest: ./kubeconfig-{{ ansible_env.ENVIRONMENT | default('dev') }}.yaml
+# - name: Fetch kubeconfig to local
+#   fetch:
+#     src: /tmp/k3s.yaml
+#     dest: ./kubeconfig-{{ ansible_env.ENVIRONMENT | default('dev') }}.yaml
+#     flat: yes
+#     mode: 0644
+
+- name: Fetch kubeconfig to local runner
+  ansible.builtin.fetch:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: "{{ playbook_dir }}/kubeconfig-{{ env | default('dev') }}.yaml"
     flat: yes
-    mode: 0644
 
 - name: Add kubectl alias for ubuntu user
   lineinfile:
