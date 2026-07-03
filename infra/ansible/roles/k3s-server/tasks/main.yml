@@ -90,3 +90,16 @@
     create: yes
     owner: ubuntu
     group: ubuntu
+
+- name: Wait for node-token to be generated
+  ansible.builtin.wait_for:
+    path: /var/lib/rancher/k3s/server/node-token
+
+- name: Capture K3s node token directly from the server
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: k3s_token_slurp
+
+- name: Store token as a host fact for agents to use
+  ansible.builtin.set_fact:
+    captured_k3s_token: "{{ k3s_token_slurp.content | b64decode | trim }}"

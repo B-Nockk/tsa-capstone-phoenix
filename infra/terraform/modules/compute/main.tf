@@ -97,6 +97,7 @@ output "worker_private_ips" {
   value = aws_instance.workers[*].private_ip
 }
 
+# TODO:: now gotten from k3s server directly - remove this after testing
 output "k3s_token" {
   value     = random_password.k3s_token.result
   sensitive = true

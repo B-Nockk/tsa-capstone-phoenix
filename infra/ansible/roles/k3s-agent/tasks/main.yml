@@ -1,19 +1,29 @@
 ---
 - name: Get control plane private IP from inventory
   set_fact:
-    # control_plane_ip: "{{ hostvars[groups['control_plane'][0]]['ansible_facts']['default_ipv4']['address'] }}"
     control_plane_ip: "{{ control_plane_private_ip }}"
+    # control_plane_ip: "{{ hostvars[groups['control_plane'][0]]['ansible_facts']['default_ipv4']['address'] }}"
+
+# - name: Install k3s agent
+#   shell: |
+#     curl -sfL https://get.k3s.io | \
+#     INSTALL_K3S_VERSION="{{ k3s_version }}" \
+#     K3S_URL="https://{{ control_plane_ip }}:6443" \
+#     # K3S_TOKEN="{{ hostvars[groups['control_plane'][0]]['node_token'] }}" \
+#     K3S_TOKEN="{{ hostvars[groups['control_plane'][0]]['node_token']['stdout'] }}" \
+#     sh -
+#   args:
+#     creates: /usr/local/bin/kubectl
 
 - name: Install k3s agent
-  shell: |
-    curl -sfL https://get.k3s.io | \
-    INSTALL_K3S_VERSION="{{ k3s_version }}" \
-    K3S_URL="https://{{ control_plane_ip }}:6443" \
-    # K3S_TOKEN="{{ hostvars[groups['control_plane'][0]]['node_token'] }}" \
-    K3S_TOKEN="{{ hostvars[groups['control_plane'][0]]['node_token']['stdout'] }}" \
+  ansible.builtin.shell: >
+    curl -sfL https://get.k3s.io |
+    INSTALL_K3S_VERSION="{{ k3s_version }}"
+    K3S_URL="https://{{ control_plane_ip }}:6443"
+    K3S_TOKEN="{{ hostvars[groups['control_plane'][0]]['captured_k3s_token'] }}"
     sh -
   args:
-    creates: /usr/local/bin/kubectl
+    creates: /usr/local/bin/k3s-agent-uninstall.sh
 
 - name: Wait for node to join cluster
   shell: |
