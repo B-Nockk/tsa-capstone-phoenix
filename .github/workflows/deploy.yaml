@@ -268,8 +268,9 @@
         - name: Deploy via ArgoCD
           if: github.event.inputs.deploy_argo != 'false'
           run: |
-            # Inject repo dynamically
+            # Inject repo and active branch dynamically!
             sed -i "s|repoURL:.*|repoURL: ${{ github.server_url }}/${{ github.repository }}|g" gitops/application.${{ env.ENV }}.yaml
+            sed -i "s|targetRevision:.*|targetRevision: ${{ github.ref_name }}|g" gitops/application.${{ env.ENV }}.yaml
             make argo-deploy ENV=${{ env.ENV }} HOST=${{ env.HOST }}
 
         - name: Run Tests
