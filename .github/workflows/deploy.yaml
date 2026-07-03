@@ -169,14 +169,30 @@
               grep -E "Offering|Authentications|Trying|debug1: Next|publickey" || true
 
         # --- STAGE 2: ANSIBLE & KUBECONFIG ---
+        # - name: Configure Cluster
+        #   if: github.event.inputs.run_ansible != 'false'
+        #   run: |
+        #     make ans-run ENV=${{ env.ENV }} INSTALL_DOCKER=${{ github.event.inputs.install_docker }}
+        #     make tf-output > /dev/null # Ensure outputs are loaded
+        #     # make k8s-context-cloud ENV=${{ env.ENV }}
+        #     mkdir -p ~/.kube
+        #     cp infra/ansible/kubeconfig-${{ env.ENV }}.yaml ~/.kube/config
+        #     kubectl get nodes
+
         - name: Configure Cluster
           if: github.event.inputs.run_ansible != 'false'
+          env:
+            # THIS IS THE SINGLE SOURCE OF TRUTH
+            KUBE_PATH: ${{ github.workspace }}/infra/ansible/kubeconfig-${{ env.ENV }}.yaml
           run: |
-            make ans-run ENV=${{ env.ENV }} INSTALL_DOCKER=${{ github.event.inputs.install_docker }}
-            make tf-output > /dev/null # Ensure outputs are loaded
-            # make k8s-context-cloud ENV=${{ env.ENV }}
+            make ans-run ENV=${{ env.ENV }} INSTALL_DOCKER=${{ github.event.inputs.install_docker }} KUBECONFIG_DEST=${{ env.KUBE_PATH }}
+            make tf-output > /dev/null
             mkdir -p ~/.kube
-            cp infra/ansible/kubeconfig-${{ env.ENV }}.yaml ~/.kube/config
+
+            # Use the exact same variable for the copy!
+            cp ${{ env.KUBE_PATH }} ~/.kube/config
+
+            # Prove the cluster is alive
             kubectl get nodes
 
         # --- STAGE 3: PLATFORM & DOMAIN ---

@@ -86,7 +86,8 @@
 - name: Fetch kubeconfig to local runner
   ansible.builtin.fetch:
     src: /etc/rancher/k3s/k3s.yaml
-    dest: "{{ playbook_dir }}/kubeconfig-{{ env | default('dev') }}.yaml"
+    # dest: "{{ playbook_dir }}/kubeconfig-{{ env | default('dev') }}.yaml"
+    dest: "{{ kubeconfig_dest }}"
     flat: yes
   register: kubeconfig_fetch
 
