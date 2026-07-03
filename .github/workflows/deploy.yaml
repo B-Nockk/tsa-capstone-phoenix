@@ -28,6 +28,11 @@
           required: true
           default: true
           type: boolean
+        install_docker:
+                description: 'Install Docker alongside K3s'
+                required: true
+                type: boolean
+                default: false
 
   env:
     ENV: ${{ github.event.inputs.environment || 'dev' }}
@@ -71,14 +76,14 @@
             aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
             aws-region: ${{ env.TF_VAR_aws_region }}
 
-        - name: Debug SSH Key Format
-          run: |
-            KEY_LINES=$(echo "${{ secrets.SSH_PRIVATE_KEY }}" | wc -l)
-            echo "The private key has $KEY_LINES lines."
-            if [ "$KEY_LINES" -lt 5 ]; then
-              echo "❌ ERROR: Private key is corrupted or missing line breaks!"
-              exit 1
-            fi
+        # - name: Debug SSH Key Format
+        #   run: |
+        #     KEY_LINES=$(echo "${{ secrets.SSH_PRIVATE_KEY }}" | wc -l)
+        #     echo "The private key has $KEY_LINES lines."
+        #     if [ "$KEY_LINES" -lt 5 ]; then
+        #       echo "❌ ERROR: Private key is corrupted or missing line breaks!"
+        #       exit 1
+        #     fi
 
         - name: Setup SSH Key for CI
           run: |
@@ -98,11 +103,18 @@
             echo "${{ secrets.SSH_PUBLIC_KEY }}" > /tmp/expected.pub
             ssh-keygen -lf /tmp/expected.pub
 
-        - name: Debug SSH negotiation
+        # - name: Debug SSH negotiation
+        #   run: |
+        #     ssh -vvv -o StrictHostKeyChecking=no -o BatchMode=yes \
+        #       -i ~/.ssh/id_ed25519 ubuntu@51.20.66.3 exit 2>&1 | \
+        #       grep -E "Offering|Authentications|Trying|debug1: Next|publickey"
+
+        - name: Verify SSH secrets are set
           run: |
-            ssh -vvv -o StrictHostKeyChecking=no -o BatchMode=yes \
-              -i ~/.ssh/id_ed25519 ubuntu@51.20.66.3 exit 2>&1 | \
-              grep -E "Offering|Authentications|Trying|debug1: Next|publickey"
+            if [ -z "${{ secrets.SSH_PUBLIC_KEY }}" ]; then
+              echo "❌ SSH_PUBLIC_KEY secret is empty — refusing to let Terraform fall back to key generation"
+              exit 1
+            fi
 
         - name: Regenerate inventory from existing state
           if: github.event.inputs.run_terraform == 'false'
@@ -113,16 +125,14 @@
             make tf-init ENV=${{ env.ENV }}
             cd infra/terraform && terraform apply -auto-approve -target=local_file.ansible_inventory
 
-        - name: Verify SSH secrets are set
-          run: |
-            if [ -z "${{ secrets.SSH_PUBLIC_KEY }}" ]; then
-              echo "❌ SSH_PUBLIC_KEY secret is empty — refusing to let Terraform fall back to key generation"
-              exit 1
-            fi
-
         - name: Get CI runner public IP
           id: runner_ip
-          run: echo "ip=$(curl -s https://checkip.amazonaws.com)/32" >> "$GITHUB_OUTPUT"
+          run: |
+            RUNNER_IP="$(curl -s https://checkip.amazonaws.com)/32"
+            if [ -z "$RUNNER_IP" ] || [ "$RUNNER_IP" = "/32" ]; then
+              echo "❌ Failed to determine runner IP"; exit 1
+            fi
+            echo "ip=$RUNNER_IP" >> "$GITHUB_OUTPUT"
 
         - name: Build allowed SSH IPs list
           id: ssh_ips
@@ -138,25 +148,74 @@
               echo "list=[\"$RUNNER_IP\"]" >> "$GITHUB_OUTPUT"
             fi
 
+        - name: Build allowed API IPs list
+          id: api_ips
+          run: |
+            RUNNER_IP="$(curl -s https://checkip.amazonaws.com)/32"
+            if [ -z "$RUNNER_IP" ] || [ "$RUNNER_IP" = "/32" ]; then
+              echo "❌ Failed to determine runner IP"; exit 1
+            fi
+
+            ADMIN_IP="${{ vars.ADMIN_SSH_IP }}"
+
+            # Build the lists for TF and Ansible
+            if [ -n "$ADMIN_IP" ]; then
+              TF_LIST="[\"$RUNNER_IP\", \"$ADMIN_IP\"]"
+              ANS_LIST="$RUNNER_IP,$ADMIN_IP"
+            else
+              TF_LIST="[\"$RUNNER_IP\"]"
+              ANS_LIST="$RUNNER_IP"
+            fi
+
+            # Export them dynamically
+            echo "TF_VAR_api_allowed_ips=$TF_LIST" >> $GITHUB_ENV
+            echo "API_IPS=$ANS_LIST" >> $GITHUB_ENV
+
         # --- STAGE 1: TERRAFORM ---
         - name: Provision Infrastructure
           if: github.event.inputs.run_terraform != 'false'
           run: |
             make tf-backend-setup ENV=${{ env.ENV }}
+            ALLOWED_IPS=$(echo "$TF_VAR_allowed_ssh_ips" | jq -c '. + ["${{ steps.runner_ip.outputs.ip }}"]')
+            echo "Allowed SSH IPs: $ALLOWED_IPS"
             make tf-apply ENV=${{ env.ENV }} \
               TF_VAR_ssh_public_key_content="${{ secrets.SSH_PUBLIC_KEY }}" \
               TF_VAR_ssh_private_key_path="/home/runner/.ssh/id_ed25519" \
-              TF_VAR_allowed_ssh_ips='${{ steps.ssh_ips.outputs.list }}'
+              TF_VAR_allowed_ssh_ips="$ALLOWED_IPS"
+
+        - name: Debug SSH negotiation
+          if: github.event.inputs.run_terraform != 'false'
+          run: |
+            IP=$(cd infra/terraform && terraform output -json control_plane_public_ips | jq -r '.[0]')
+            ssh -vvv -o StrictHostKeyChecking=no -o BatchMode=yes \
+              -i ~/.ssh/id_ed25519 ubuntu@"$IP" exit 2>&1 | \
+              grep -E "Offering|Authentications|Trying|debug1: Next|publickey" || true
 
         # --- STAGE 2: ANSIBLE & KUBECONFIG ---
+        # - name: Configure Cluster
+        #   if: github.event.inputs.run_ansible != 'false'
+        #   run: |
+        #     make ans-run ENV=${{ env.ENV }} INSTALL_DOCKER=${{ github.event.inputs.install_docker }}
+        #     make tf-output > /dev/null # Ensure outputs are loaded
+        #     # make k8s-context-cloud ENV=${{ env.ENV }}
+        #     mkdir -p ~/.kube
+        #     cp infra/ansible/kubeconfig-${{ env.ENV }}.yaml ~/.kube/config
+        #     kubectl get nodes
+
         - name: Configure Cluster
           if: github.event.inputs.run_ansible != 'false'
+          env:
+            # THIS IS THE SINGLE SOURCE OF TRUTH
+            KUBE_PATH: ${{ github.workspace }}/infra/ansible/kubeconfig-${{ env.ENV }}.yaml
           run: |
-            make ans-run ENV=${{ env.ENV }}
-            make tf-output > /dev/null # Ensure outputs are loaded
-            # make k8s-context-cloud ENV=${{ env.ENV }}
+            make ans-run ENV=${{ env.ENV }} INSTALL_DOCKER=${{ github.event.inputs.install_docker }} KUBECONFIG_DEST=${{ env.KUBE_PATH }}
+            make tf-output > /dev/null
             mkdir -p ~/.kube
-            cp infra/ansible/kubeconfig-${{ env.ENV }}.yaml ~/.kube/config
+
+            # Use the exact same variable for the copy!
+            cp ${{ env.KUBE_PATH }} ~/.kube/config
+
+            # Prove the cluster is alive
             kubectl get nodes
 
         # --- STAGE 3: PLATFORM & DOMAIN ---

@@ -1,84 +1,120 @@
----
+# ==============================================================================
+# PRE-FLIGHT CHECKS
+# ==============================================================================
+- name: Wait for SSH to become available before starting
+  ansible.builtin.wait_for_connection:
+    timeout: 60
+    delay: 5
+
 - name: Get control plane private IP
-  set_fact:
-    # control_plane_ip: "{{ ansible_default_ipv4.address }}"
-    # control_plane_ip: "{{ ansible_facts['default_ipv4']['address'] }}"
+  ansible.builtin.set_fact:
     control_plane_ip: "{{ control_plane_private_ip }}"
 
+# ==============================================================================
+# K3S SERVER INSTALLATION
+# ==============================================================================
 - name: Create k3s install directory
-  file:
+  ansible.builtin.file:
     path: "{{ k3s_install_dir }}"
     state: directory
-    mode: 0755
+    mode: "0755"
 
 - name: Install k3s server
-  shell: |
-    curl -sfL https://get.k3s.io | \
-    INSTALL_K3S_VERSION="{{ k3s_version }}" \
-    K3S_TOKEN="{{ hostvars['localhost']['k3s_token'] | default('') }}" \
-    INSTALL_K3S_EXEC="{{ k3s_server_args }}" \
-    sh -
+  ansible.builtin.shell: >
+    curl -sfL https://get.k3s.io |
+    INSTALL_K3S_VERSION="{{ k3s_version }}"
+    sh -s - server
+    --tls-san {{ ansible_host }}
+    --write-kubeconfig-mode 644
+    {{ k3s_server_args | default('') }}
   args:
-    creates: /usr/local/bin/kubectl
+    creates: /etc/rancher/k3s/k3s.yaml
 
-- name: Wait for k3s to be ready
-  shell: kubectl get nodes
+- name: Wait for k3s control plane to be ready
+  ansible.builtin.command: kubectl get nodes
   register: result
   until: result.rc == 0
   retries: 30
   delay: 5
-
-# --- CALICO CNI INSTALLATION ---
-# - name: Install Calico Tigera Operator
-#   shell: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml
-#   register: calico_operator
-#   failed_when: calico_operator.rc != 0 and 'AlreadyExists' not in calico_operator.stderr
-#   changed_when: "'created' in calico_operator.stdout"
-
-- name: Install Calico Custom Resources
-  command: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.26.1/manifests/custom-resources.yaml
-  register: calico_cr_result
-  until: calico_cr_result.rc == 0
-  retries: 6
-  delay: 10
-
-- name: Wait for Tigera Operator to be ready
-  pause:
-    seconds: 10
-
-- name: Install Calico Custom Resources
-  shell: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/custom-resources.yaml
-  register: calico_cr
-  failed_when: calico_cr.rc != 0 and 'AlreadyExists' not in calico_cr.stderr
-  changed_when: "'created' in calico_cr.stdout"
-# ------------------------------------
-
-- name: Get node token for workers
-  shell: cat /var/lib/rancher/k3s/server/node-token
-  register: node_token
   changed_when: false
 
-- name: Display node token
-  debug:
-    msg: "Node token: {{ node_token.stdout }}"
+# ==============================================================================
+# CALICO CNI DEPLOYMENT
+# ==============================================================================
+- name: Install Calico Tigera Operator (CRDs + operator deployment)
+  ansible.builtin.command: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml
+  register: calico_operator_result
+  failed_when: calico_operator_result.rc != 0 and 'AlreadyExists' not in calico_operator_result.stderr
+  changed_when: "'created' in calico_operator_result.stdout"
 
-- name: Generate kubeconfig for local use
-  shell: |
-    cp /etc/rancher/k3s/k3s.yaml /tmp/k3s.yaml
-    sed -i 's/127.0.0.1/{{ control_plane_ip }}/g' /tmp/k3s.yaml
-    chmod 644 /tmp/k3s.yaml
+- name: Wait for Tigera Operator CRDs to be established
+  ansible.builtin.command: >
+    kubectl wait --for=condition=established --timeout=60s
+    crd/installations.operator.tigera.io crd/apiservers.operator.tigera.io
+  register: crd_wait
+  until: crd_wait.rc == 0
+  retries: 6
+  delay: 10
+  changed_when: false
 
-- name: Fetch kubeconfig to local
-  fetch:
-    src: /tmp/k3s.yaml
-    dest: ./kubeconfig-{{ ansible_env.ENVIRONMENT | default('dev') }}.yaml
-    flat: yes
-    mode: 0644
+- name: Wait for Tigera Operator deployment to be ready
+  ansible.builtin.command: kubectl -n tigera-operator rollout status deployment/tigera-operator --timeout=60s
+  register: operator_rollout
+  until: operator_rollout.rc == 0
+  retries: 6
+  delay: 10
+  changed_when: false
+
+- name: Install Calico Custom Resources
+  ansible.builtin.command: kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/custom-resources.yaml
+  register: calico_cr_result
+  until: calico_cr_result.rc == 0 or 'AlreadyExists' in calico_cr_result.stderr
+  retries: 6
+  delay: 10
+  failed_when: calico_cr_result.rc != 0 and 'AlreadyExists' not in calico_cr_result.stderr
+  changed_when: "'created' in calico_cr_result.stdout"
+
+# ==============================================================================
+# TOKEN CAPTURE FOR WORKERS
+# ==============================================================================
+- name: Wait for node-token to be generated
+  ansible.builtin.wait_for:
+    path: /var/lib/rancher/k3s/server/node-token
+
+- name: Capture K3s node token directly from the server
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  register: k3s_token_slurp
+
+- name: Store token as a host fact for agents to use
+  ansible.builtin.set_fact:
+    captured_k3s_token: "{{ k3s_token_slurp.content | b64decode | trim }}"
+
+# ==============================================================================
+# KUBECONFIG HANDLING & UTILS
+# ==============================================================================
+- name: Fetch kubeconfig to local runner
+  ansible.builtin.fetch:
+    src: /etc/rancher/k3s/k3s.yaml
+    dest: "{{ kubeconfig_dest }}"
+    flat: true
+  register: kubeconfig_fetch
+
+- name: DEBUG - Show exactly where the kubeconfig was saved
+  ansible.builtin.debug:
+    msg: "SUCCESS! The kubeconfig was saved to: {{ kubeconfig_fetch.dest }}"
+
+- name: Rewrite kubeconfig to use control plane public IP
+  ansible.builtin.replace:
+    path: "{{ kubeconfig_dest }}"
+    regexp: '127\.0\.0\.1'
+    replace: "{{ ansible_host | default(inventory_hostname) }}"
+  delegate_to: localhost
 
 - name: Add kubectl alias for ubuntu user
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /home/ubuntu/.bashrc
     line: "alias k='kubectl'"
-    create: yes
+    create: true
     owner: ubuntu
     group: ubuntu

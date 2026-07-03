@@ -69,9 +69,21 @@ variable "aws_region" {
 # ============================================
 
 variable "instance_type" {
-  description = "Instance type for all nodes"
+  description = "Fallback EC2 instance type for all nodes if specific ones aren't provided"
   type        = string
   default     = "t3.micro"
+}
+
+variable "control_plane_instance_type" {
+  description = "Specific instance type for the control plane. Falls back to instance_type if empty."
+  type        = string
+  default     = "t3.small"
+}
+
+variable "worker_instance_type" {
+  description = "Specific instance type for worker nodes. Falls back to instance_type if empty."
+  type        = string
+  default     = ""
 }
 
 variable "node_count" {
@@ -181,4 +193,10 @@ variable "ssm_role_name" {
 variable "iam_instance_profile" {
   type    = string
   default = null
+}
+
+variable "api_allowed_ips" {
+  description = "List of IPs allowed to access the K8s API"
+  type        = list(string)
+  default     = []
 }

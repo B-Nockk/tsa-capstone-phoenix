@@ -3,6 +3,7 @@
   hosts: all
   become: yes
   gather_facts: yes
+  any_errors_fatal: true # Stops execution entirely if any node crashes
 
   roles:
     - base-hardening

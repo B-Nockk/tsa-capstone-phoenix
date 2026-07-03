@@ -51,26 +51,37 @@ resource "aws_security_group_rule" "https" {
   description       = "HTTPS from anywhere"
 }
 
-# Kubernetes API - only from VPC AND Admin IPs
+# Kubernetes API - VPC + Dynamic External IPs (Runner + Admin)
 resource "aws_security_group_rule" "k8s_api" {
   type              = "ingress"
   from_port         = 6443
   to_port           = 6443
   protocol          = "tcp"
-  cidr_blocks       = concat([var.vpc_cidr], var.allowed_ssh_ips)
+  cidr_blocks       = concat([var.vpc_cidr], var.allowed_ssh_ips, var.api_allowed_ips)
   security_group_id = aws_security_group.nodes.id
-  description       = "Kubernetes API (VPC + Admin IP)"
+  description       = "Kubernetes API (Internal VPC + Dynamic Whitelist)"
 }
+
+# Node-to-node communication (internal)
+# resource "aws_security_group_rule" "node_internal" {
+#   type              = "ingress"
+#   from_port         = 0
+#   to_port           = 65535
+#   protocol          = "tcp"
+#   cidr_blocks       = [var.vpc_cidr]
+#   security_group_id = aws_security_group.nodes.id
+#   description       = "Internal node communication"
+# }
 
 # Node-to-node communication (internal)
 resource "aws_security_group_rule" "node_internal" {
   type              = "ingress"
   from_port         = 0
-  to_port           = 65535
-  protocol          = "tcp"
+  to_port           = 0
+  protocol          = "-1" # Allows TCP, UDP, IPIP, ICMP, etc.
   cidr_blocks       = [var.vpc_cidr]
   security_group_id = aws_security_group.nodes.id
-  description       = "Internal node communication"
+  description       = "Internal node communication (All Protocols for CNI)"
 }
 
 # ============================================

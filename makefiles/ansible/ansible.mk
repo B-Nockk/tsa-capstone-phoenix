@@ -1,11 +1,12 @@
 # ============================================
 # ansible.mk - Ansible Configuration
 # ============================================
-ANSIBLE_DIR      ?= $(INFRA_DIR)/ansible
-ANSIBLE_INV      ?= $(ANSIBLE_DIR)/inventory/$(ENV)/hosts.ini
-ANSIBLE_PLAYBOOK ?= $(ANSIBLE_DIR)/playbooks/site.yml
-ANSIBLE_USER      ?= ubuntu
-
+ANSIBLE_DIR      	?= $(INFRA_DIR)/ansible
+ANSIBLE_INV      	?= $(ANSIBLE_DIR)/inventory/$(ENV)/hosts.ini
+ANSIBLE_PLAYBOOK 	?= $(ANSIBLE_DIR)/playbooks/site.yml
+ANSIBLE_USER		?= ubuntu
+INSTALL_DOCKER		?= false
+API_IPS				?= ""
 # 🤖 Smart Environment Detection:
 # GitHub Actions automatically sets GITHUB_ACTIONS=true in the runner environment
 ifeq ($(GITHUB_ACTIONS),true)
@@ -17,8 +18,8 @@ endif
 ANSIBLE_SSH_ARGS ?= -o StrictHostKeyChecking=no -o IdentitiesOnly=yes
 
 # 🎯 Force Precedence: Extra Vars (-e) completely override internal inventory host variables
-ANSIBLE_OPTS     ?= -e "ansible_ssh_private_key_file=$(ANSIBLE_SSH_KEY)"
-
+ANSIBLE_OPTS     	?= -e "ansible_ssh_private_key_file=$(ANSIBLE_SSH_KEY)"
+KUBECONFIG_DEST		?= $(PWD)/infra/ansible/kubeconfig-$(ENV).yaml
 .PHONY: help-ansible
 help-ansible:
 	@echo "$(CYAN)Ansible:$(RESET)"
@@ -41,6 +42,7 @@ ans-ping: ans-check ## Ping all nodes
 .PHONY: ans-run
 ans-run: ans-check ## Run main playbook
 	@cd $(ANSIBLE_DIR) && ansible-playbook -i inventory/$(ENV)/hosts.ini playbooks/site.yml \
+		-e "install_docker=$(INSTALL_DOCKER) env=$(ENV) kubeconfig_dest=$(KUBECONFIG_DEST) api_ips=$(API_IPS)" \
 		--user=$(ANSIBLE_USER) \
 		--ssh-extra-args='$(ANSIBLE_SSH_ARGS)' \
 		$(ANSIBLE_OPTS)

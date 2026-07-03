@@ -95,9 +95,13 @@ module "security" {
 module "compute" {
   source = "./modules/compute"
 
-  environment       = var.environment
-  project_name      = var.project_name
-  instance_type     = var.instance_type
+  environment  = var.environment
+  project_name = var.project_name
+
+  #   instance_type               = var.instance_type
+  control_plane_instance_type = coalesce(var.control_plane_instance_type, var.instance_type)
+  worker_instance_type        = coalesce(var.worker_instance_type, var.instance_type)
+
   node_count        = var.node_count
   public_subnet_ids = module.network.public_subnet_ids
   security_group_id = module.security.security_group_id
@@ -123,6 +127,7 @@ resource "local_file" "ansible_inventory" {
     ssh_user                  = "ubuntu"
     ssh_private_key_path      = var.ssh_private_key_path
     k3s_token                 = module.compute.k3s_token
+    vpc_cidr                  = var.vpc_cidr
   })
 
   filename = "${path.module}/../ansible/inventory/${var.environment}/hosts.ini"

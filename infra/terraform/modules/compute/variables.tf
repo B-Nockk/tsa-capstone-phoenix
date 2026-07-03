@@ -8,8 +8,18 @@ variable "project_name" {
   type        = string
 }
 
-variable "instance_type" {
-  description = "EC2 instance type"
+# variable "instance_type" {
+#   description = "EC2 instance type"
+#   type        = string
+# }
+
+variable "control_plane_instance_type" {
+  description = "EC2 instance type for the control plane"
+  type        = string
+}
+
+variable "worker_instance_type" {
+  description = "EC2 instance type for the workers"
   type        = string
 }
 
