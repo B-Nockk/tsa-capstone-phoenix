@@ -95,6 +95,13 @@
   ansible.builtin.debug:
     msg: "SUCCESS! The kubeconfig was saved to: {{ kubeconfig_fetch.dest }}"
 
+- name: Rewrite kubeconfig to use control plane public IP
+  ansible.builtin.replace:
+    path: "{{ kubeconfig_dest }}"
+    regexp: '127\.0\.0\.1'
+    replace: "{{ ansible_host | default(inventory_hostname) }}"
+  delegate_to: localhost
+
 - name: Add kubectl alias for ubuntu user
   lineinfile:
     path: /home/ubuntu/.bashrc
