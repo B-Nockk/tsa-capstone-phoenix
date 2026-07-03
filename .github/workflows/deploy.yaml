@@ -148,6 +148,29 @@
               echo "list=[\"$RUNNER_IP\"]" >> "$GITHUB_OUTPUT"
             fi
 
+        - name: Build allowed API IPs list
+          id: api_ips
+          run: |
+            RUNNER_IP="$(curl -s https://checkip.amazonaws.com)/32"
+            if [ -z "$RUNNER_IP" ] || [ "$RUNNER_IP" = "/32" ]; then
+              echo "❌ Failed to determine runner IP"; exit 1
+            fi
+
+            ADMIN_IP="${{ vars.ADMIN_SSH_IP }}"
+
+            # Build the lists for TF and Ansible
+            if [ -n "$ADMIN_IP" ]; then
+              TF_LIST="[\"$RUNNER_IP\", \"$ADMIN_IP\"]"
+              ANS_LIST="$RUNNER_IP,$ADMIN_IP"
+            else
+              TF_LIST="[\"$RUNNER_IP\"]"
+              ANS_LIST="$RUNNER_IP"
+            fi
+
+            # Export them dynamically
+            echo "TF_VAR_api_allowed_ips=$TF_LIST" >> $GITHUB_ENV
+            echo "API_IPS=$ANS_LIST" >> $GITHUB_ENV
+
         # --- STAGE 1: TERRAFORM ---
         - name: Provision Infrastructure
           if: github.event.inputs.run_terraform != 'false'

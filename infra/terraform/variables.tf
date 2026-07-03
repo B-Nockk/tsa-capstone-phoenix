@@ -194,3 +194,9 @@ variable "iam_instance_profile" {
   type    = string
   default = null
 }
+
+variable "api_allowed_ips" {
+  description = "List of IPs allowed to access the K8s API"
+  type        = list(string)
+  default     = []
+}

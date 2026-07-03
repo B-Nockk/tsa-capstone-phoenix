@@ -69,6 +69,15 @@
     rule: allow
     src: "{{ vpc_cidr }}"
 
+- name: Configure UFW - allow K8s API from allowed IPs
+  ufw:
+    rule: allow
+    port: "6443"
+    proto: tcp
+    src: "{{ item }}"
+  loop: "{{ api_ips.split(',') }}"
+  when: api_ips is defined and api_ips | length > 0 and item != ''
+
 - name: Enable UFW
   ufw:
     state: enabled
