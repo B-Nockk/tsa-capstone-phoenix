@@ -33,6 +33,7 @@ include makefiles/monitoring/stack.mk
 include makefiles/secrets/sealed.mk
 include makefiles/diag/cluster.mk
 include makefiles/diag/tls.mk
+include makefiles/administration.mk
 
 # ============================================
 # Full Deployment Pipelines
@@ -111,38 +112,49 @@ tls-verify: ## Verify full TLS setup
 help: ## Show this help message
 	@echo "$(GREEN)TaskApp Makefile Help$(RESET)"
 	@echo "$(YELLOW)Usage: make [target] [VARIABLE=value]$(RESET)"
-	@echo "$(CYAN)Environment Variables:$(RESET) ENV, CLOUD, NAMESPACE, HOST"
+	@echo "$(CYAN)Environment Variables:$(RESET) ENV, CLOUD, NAMESPACE, HOST, GH_BRANCH"
 	@echo ""
+	@echo "$(MAGENTA)=== Core & Utilities ===$(RESET)"
 	@$(MAKE) --no-print-directory help-common
 	@echo ""
+	@echo "$(MAGENTA)=== Platform Lifecycle ===$(RESET)"
 	@$(MAKE) --no-print-directory help-sys-startup
 	@$(MAKE) --no-print-directory help-sys-shutdown
 	@echo ""
+	@echo "$(MAGENTA)=== CI/CD Administration (GitHub Actions) ===$(RESET)"
+	@$(MAKE) --no-print-directory help-admin
+	@echo ""
+	@echo "$(MAGENTA)=== Infrastructure & Configuration ===$(RESET)"
 	@$(MAKE) --no-print-directory help-terraform
 	@$(MAKE) --no-print-directory help-ansible
 	@echo ""
+	@echo "$(MAGENTA)=== Kubernetes Core & Security ===$(RESET)"
 	@$(MAKE) --no-print-directory help-k8s-cluster
 	@$(MAKE) --no-print-directory help-k8s-ingress
 	@$(MAKE) --no-print-directory help-k8s-cert
 	@$(MAKE) --no-print-directory help-k8s-tls
 	@echo ""
+	@echo "$(MAGENTA)=== Helm & Deployments ===$(RESET)"
 	@$(MAKE) --no-print-directory help-helm-app
 	@$(MAKE) --no-print-directory help-helm-testing
 	@$(MAKE) --no-print-directory help-helm-argo
 	@echo ""
+	@echo "$(MAGENTA)=== GitOps (ArgoCD) ===$(RESET)"
 	@$(MAKE) --no-print-directory help-argo-install
 	@$(MAKE) --no-print-directory help-argo-access
 	@$(MAKE) --no-print-directory help-argo-sync
 	@$(MAKE) --no-print-directory help-argo-management
 	@echo ""
+	@echo "$(MAGENTA)=== Add-ons & Observability ===$(RESET)"
 	@$(MAKE) --no-print-directory help-monitoring
 	@$(MAKE) --no-print-directory help-cicd
 	@$(MAKE) --no-print-directory help-secrets
 	@echo ""
+	@echo "$(MAGENTA)=== Diagnostics & Troubleshooting ===$(RESET)"
 	@$(MAKE) --no-print-directory help-diag-cluster
 	@$(MAKE) --no-print-directory help-diag-tls
 	@echo ""
-	@echo "$(CYAN)Domain-Specific Help:$(RESET)"
+	@echo "$(CYAN)Domain-Specific Helpers (Run these for grouped commands):$(RESET)"
 	@echo "  make help-argo     Show all ArgoCD commands"
 	@echo "  make help-k8s      Show all Kubernetes commands"
 	@echo "  make help-helm     Show all Helm commands"

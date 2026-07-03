@@ -1,12 +1,13 @@
 # ============================================
 # common.mk - Common utilities and variables
 # ============================================
-GREEN  := $(shell tput -Txterm setaf 2 2>/dev/null || echo "")
-YELLOW := $(shell tput -Txterm setaf 3 2>/dev/null || echo "")
-RED    := $(shell tput -Txterm setaf 1 2>/dev/null || echo "")
-BLUE   := $(shell tput -Txterm setaf 4 2>/dev/null || echo "")
-CYAN   := $(shell tput -Txterm setaf 6 2>/dev/null || echo "")
-RESET  := $(shell tput -Txterm sgr0 2>/dev/null || echo "")
+GREEN   := $(shell tput -Txterm setaf 2 2>/dev/null || echo "")
+YELLOW  := $(shell tput -Txterm setaf 3 2>/dev/null || echo "")
+RED     := $(shell tput -Txterm setaf 1 2>/dev/null || echo "")
+BLUE    := $(shell tput -Txterm setaf 4 2>/dev/null || echo "")
+MAGENTA := $(shell tput -Txterm setaf 5 2>/dev/null || echo "")
+CYAN    := $(shell tput -Txterm setaf 6 2>/dev/null || echo "")
+RESET   := $(shell tput -Txterm sgr0 2>/dev/null || echo "")
 
 ENV              	?= dev
 CLOUD            	?= local
