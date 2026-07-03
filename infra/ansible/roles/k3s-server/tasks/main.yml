@@ -15,6 +15,7 @@
   shell: |
     curl -sfL https://get.k3s.io | \
     INSTALL_K3S_VERSION="{{ k3s_version }}" \
+    sh -s - server --tls-san {{ ansible_host }} --write-kubeconfig-mode 644
     K3S_TOKEN="{{ hostvars['localhost']['k3s_token'] | default('') }}" \
     INSTALL_K3S_EXEC="{{ k3s_server_args }}" \
     sh -
