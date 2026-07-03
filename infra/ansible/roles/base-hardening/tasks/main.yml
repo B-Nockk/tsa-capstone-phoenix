@@ -1,6 +1,9 @@
 ---
+# ==============================================================================
+# PRE-FLIGHT & APT LOCK MANAGEMENT
+# ==============================================================================
 - name: Wait for cloud-init to complete
-  command: cloud-init status --wait
+  ansible.builtin.command: cloud-init status --wait
   changed_when: false
 
 - name: Stop and disable automatic apt timers to prevent lock contention
@@ -23,50 +26,43 @@
     done
   changed_when: false
 
+# ==============================================================================
+# SYSTEM UPDATES & PACKAGES
+# ==============================================================================
 - name: Update apt cache
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     cache_valid_time: 3600
     lock_timeout: 500
   throttle: 1 # Forces Ansible to update packages one server at a time
 
 - name: Install base packages
-  apt:
+  ansible.builtin.apt:
     name: "{{ packages_base }}"
     state: present
     lock_timeout: 500
   throttle: 1 # Keeps memory spikes contained
 
-# TODO:: needs an IAM instance profile with AmazonSSMManagedInstanceCore attached in the compute module
-#   - worth adding regardless, it's the standard "I locked myself out" escape hatch for EC2).
-#   - Then: aws ssm start-session --target <instance-id> gets you a shell with zero dependency on SSH working.
-# Uncomment Below
-# - name: Install SSM agent (out-of-band access, bypasses SSH/fail2ban lockouts)
-#   apt:
-#     name: amazon-ssm-agent
-#     state: present
-
 - name: Set timezone
   timezone:
     name: "{{ timezone }}"
 
-- name: Configure UFW - allow SSH
+# ==============================================================================
+# FIREWALL (UFW)
+# ==============================================================================
+- name: Configure UFW - allow SSH (CRITICAL to avoid lockouts)
   ufw:
     rule: allow
-    port: "{{ ssh_port }}"
-    proto: tcp
+    name: OpenSSH
 
-- name: Configure UFW - allow HTTP
+- name: Configure UFW - allow HTTP and HTTPS
   ufw:
     rule: allow
-    port: 80
+    port: "{{ item }}"
     proto: tcp
-
-- name: Configure UFW - allow HTTPS
-  ufw:
-    rule: allow
-    port: 443
-    proto: tcp
+  loop:
+    - "80"
+    - "443"
 
 - name: Configure UFW - allow internal VPC traffic for K8s/Calico
   ufw:
@@ -78,8 +74,11 @@
     state: enabled
     policy: deny
 
+# ==============================================================================
+# SECURITY & HARDENING
+# ==============================================================================
 - name: Configure fail2ban
-  copy:
+  ansible.builtin.copy:
     dest: /etc/fail2ban/jail.local
     content: |
       [DEFAULT]
@@ -94,17 +93,17 @@
       logpath = /var/log/auth.log
     owner: root
     group: root
-    mode: 0644
+    mode: "0644"
   notify: restart fail2ban
 
 - name: Ensure fail2ban is running
-  service:
+  ansible.builtin.service:
     name: fail2ban
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Configure system limits
-  copy:
+  ansible.builtin.copy:
     dest: /etc/security/limits.conf
     content: |
       * soft nofile 65535
@@ -113,57 +112,80 @@
       * hard nproc 65535
     owner: root
     group: root
-    mode: 0644
+    mode: "0644"
 
 - name: Disable root SSH login
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: "^PermitRootLogin"
     line: "PermitRootLogin no"
   notify: restart ssh
 
 - name: Disable password authentication
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: "^PasswordAuthentication"
     line: "PasswordAuthentication no"
   notify: restart ssh
 
 - name: Enable SSH key authentication
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: "^PubkeyAuthentication"
     line: "PubkeyAuthentication yes"
   notify: restart ssh
 
-- name: Install Docker prerequisites
-  apt:
-    name:
-      - apt-transport-https
-      - ca-certificates
-      - curl
-      - gnupg
-      - lsb-release
-    state: present
+# ==============================================================================
+# DOCKER (Optional - Controlled via pipeline feature flag)
+# ==============================================================================
+- name: Install and configure Docker (Optional)
+  when: install_docker | default(false) | bool
+  block:
+    - name: Install Docker prerequisites
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
 
-- name: Add Docker GPG key
-  apt_key:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    state: present
+    - name: Create directory for Docker key
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
 
-- name: Add Docker repository
-  apt_repository:
-    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-    state: present
+    - name: Download Docker GPG key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: "0644"
 
-- name: Install Docker
-  apt:
-    name: docker-ce
-    state: present
-    update_cache: yes
+    - name: Add Docker repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
 
-- name: Add ubuntu user to docker group
-  user:
-    name: ubuntu
-    groups: docker
-    append: yes
+    - name: Install Docker
+      ansible.builtin.apt:
+        name: docker-ce
+        state: present
+        update_cache: true
+
+    - name: Add ubuntu user to docker group
+      ansible.builtin.user:
+        name: ubuntu
+        groups: docker
+        append: true
+# ==============================================================================
+# TODO:: needs an IAM instance profile with AmazonSSMManagedInstanceCore attached in the compute module
+# ==============================================================================
+#   - worth adding regardless, it's the standard "I locked myself out" escape hatch for EC2).
+#   - Then: aws ssm start-session --target <instance-id> gets you a shell with zero dependency on SSH working.
+# Uncomment Below
+# - name: Install SSM agent (out-of-band access, bypasses SSH/fail2ban lockouts)
+#   apt:
+#     name: amazon-ssm-agent
+#     state: present

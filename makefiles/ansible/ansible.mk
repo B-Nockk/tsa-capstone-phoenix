@@ -1,10 +1,11 @@
 # ============================================
 # ansible.mk - Ansible Configuration
 # ============================================
-ANSIBLE_DIR      ?= $(INFRA_DIR)/ansible
-ANSIBLE_INV      ?= $(ANSIBLE_DIR)/inventory/$(ENV)/hosts.ini
-ANSIBLE_PLAYBOOK ?= $(ANSIBLE_DIR)/playbooks/site.yml
-ANSIBLE_USER      ?= ubuntu
+ANSIBLE_DIR      	?= $(INFRA_DIR)/ansible
+ANSIBLE_INV      	?= $(ANSIBLE_DIR)/inventory/$(ENV)/hosts.ini
+ANSIBLE_PLAYBOOK 	?= $(ANSIBLE_DIR)/playbooks/site.yml
+ANSIBLE_USER		?= ubuntu
+INSTALL_DOCKER		?= false
 
 # 🤖 Smart Environment Detection:
 # GitHub Actions automatically sets GITHUB_ACTIONS=true in the runner environment
@@ -41,6 +42,7 @@ ans-ping: ans-check ## Ping all nodes
 .PHONY: ans-run
 ans-run: ans-check ## Run main playbook
 	@cd $(ANSIBLE_DIR) && ansible-playbook -i inventory/$(ENV)/hosts.ini playbooks/site.yml \
+		-e "install_docker=$(INSTALL_DOCKER)" \
 		--user=$(ANSIBLE_USER) \
 		--ssh-extra-args='$(ANSIBLE_SSH_ARGS)' \
 		$(ANSIBLE_OPTS)
