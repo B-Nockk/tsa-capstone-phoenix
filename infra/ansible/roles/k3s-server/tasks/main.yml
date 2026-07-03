@@ -88,6 +88,11 @@
     src: /etc/rancher/k3s/k3s.yaml
     dest: "{{ playbook_dir }}/kubeconfig-{{ env | default('dev') }}.yaml"
     flat: yes
+  register: kubeconfig_fetch
+
+- name: DEBUG - Show exactly where the kubeconfig was saved
+  ansible.builtin.debug:
+    msg: "SUCCESS! The kubeconfig was saved to: {{ kubeconfig_fetch.dest }}"
 
 - name: Add kubectl alias for ubuntu user
   lineinfile:
