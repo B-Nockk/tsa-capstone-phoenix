@@ -42,7 +42,7 @@ ans-ping: ans-check ## Ping all nodes
 .PHONY: ans-run
 ans-run: ans-check ## Run main playbook
 	@cd $(ANSIBLE_DIR) && ansible-playbook -i inventory/$(ENV)/hosts.ini playbooks/site.yml \
-		-e "install_docker=$(INSTALL_DOCKER) env=$(ENV) kubeconfig_dest=$(KUBECONFIG_DEST)" api_ips=$(API_IPS)" \
+		-e "install_docker=$(INSTALL_DOCKER) env=$(ENV) kubeconfig_dest=$(KUBECONFIG_DEST) api_ips=$(API_IPS)" \
 		--user=$(ANSIBLE_USER) \
 		--ssh-extra-args='$(ANSIBLE_SSH_ARGS)' \
 		$(ANSIBLE_OPTS)
