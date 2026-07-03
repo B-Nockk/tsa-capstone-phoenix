@@ -1,0 +1,27 @@
+---
+# Full preflight sequence for a single node. Included with retries so that
+# a first-boot VM that isn't fully up yet gets a second full pass instead
+# of failing the whole play outright.
+
+- name: Wait for SSH port to be reachable
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host | default(inventory_hostname) }}"
+    port: 22
+    state: started
+    delay: 0
+    timeout: 300
+  delegate_to: localhost
+
+- name: Wait for SSH to become available and authenticate
+  ansible.builtin.wait_for_connection:
+    timeout: 300
+    sleep: 5
+    connect_timeout: 5
+
+- name: Wait for cloud-init to finish
+  ansible.builtin.raw: cloud-init status --wait
+  changed_when: false
+  failed_when: false # some images don't have cloud-init; don't hard-fail
+
+- name: Gather facts manually after SSH is ready
+  ansible.builtin.setup:
