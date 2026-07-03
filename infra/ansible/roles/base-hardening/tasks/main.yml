@@ -29,12 +29,20 @@
 # ==============================================================================
 # SYSTEM UPDATES & PACKAGES
 # ==============================================================================
+# TODO:: update this to have vars for lock_timeout & apt_cache_time to auto skip or pass on a configurable timeout
+# - name: Update apt cache
+#   ansible.builtin.apt:
+#     update_cache: true
+#     cache_valid_time: "{{ apt_cache_time | default(86400) }}"
+#     lock_timeout: 1200 # Bumped to 20 mins
+#   throttle: 1 # Forces Ansible to update packages one server at a time
 - name: Update apt cache
   ansible.builtin.apt:
     update_cache: true
-    cache_valid_time: 3600
-    lock_timeout: 500
-  throttle: 1 # Forces Ansible to update packages one server at a time
+    cache_valid_time: 86400
+    lock_timeout: 800 # Bumped to 20 mins
+  ignore_errors: true
+  # throttle: 1 # Forces Ansible to update packages one server at a time
 
 - name: Install base packages
   ansible.builtin.apt:
