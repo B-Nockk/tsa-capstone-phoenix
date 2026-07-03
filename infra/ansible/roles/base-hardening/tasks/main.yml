@@ -68,6 +68,11 @@
     port: 443
     proto: tcp
 
+- name: Configure UFW - allow internal VPC traffic for K8s/Calico
+  ufw:
+    rule: allow
+    src: "{{ vpc_cidr }}"
+
 - name: Enable UFW
   ufw:
     state: enabled

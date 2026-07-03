@@ -127,6 +127,7 @@ resource "local_file" "ansible_inventory" {
     ssh_user                  = "ubuntu"
     ssh_private_key_path      = var.ssh_private_key_path
     k3s_token                 = module.compute.k3s_token
+    vpc_cidr                  = var.vpc_cidr
   })
 
   filename = "${path.module}/../ansible/inventory/${var.environment}/hosts.ini"
