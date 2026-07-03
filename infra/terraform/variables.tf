@@ -200,3 +200,18 @@ variable "api_allowed_ips" {
   type        = list(string)
   default     = []
 }
+
+# ============================================
+# KUBERNETES NETWORKING
+# ============================================
+variable "k3s_pod_cidr" {
+  description = "CIDR block for Kubernetes Pods"
+  type        = string
+  default     = "192.168.0.0/16"
+}
+
+variable "k3s_service_cidr" {
+  description = "CIDR block for Kubernetes Services"
+  type        = string
+  default     = "10.43.0.0/16"
+}

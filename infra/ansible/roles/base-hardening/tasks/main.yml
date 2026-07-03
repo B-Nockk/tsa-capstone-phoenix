@@ -72,10 +72,15 @@
     - "80"
     - "443"
 
-- name: Configure UFW - allow internal VPC traffic for K8s/Calico
+- name: Configure UFW - allow internal K8s traffic (VPC, Pods, Services)
   ufw:
     rule: allow
-    src: "{{ vpc_cidr }}"
+    src: "{{ item }}"
+  loop:
+    - "{{ vpc_cidr }}"
+    - "{{ k3s_pod_cidr | default('192.168.0.0/16') }}"
+    - "{{ k3s_service_cidr | default('10.43.0.0/16') }}"
+  when: item is defined and item != ''
 
 - name: Configure UFW - allow K8s API from allowed IPs
   ufw:
