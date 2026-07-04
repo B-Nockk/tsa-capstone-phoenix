@@ -12,10 +12,12 @@ TIMEOUT ?= 45
 help-admin:
 	@echo "$(CYAN)Pipeline Administration (GitHub Actions):$(RESET)"
 	@echo "  gh-deploy-full      Run complete pipeline (Terraform -> Ansible -> ArgoCD)"
+	@echo "  gh-deploy-duckdns   Run complete pipeline with duckdns"
 	@echo "  gh-deploy-infra     Run ONLY Terraform provisioning"
 	@echo "  gh-deploy-k8s       Run ONLY Ansible K3s installation"
 	@echo "  gh-deploy-argo      Run ONLY ArgoCD application sync"
 	@echo "  gh-deploy-custom    Run with custom flags (e.g., TF=true ANS=false ARGO=true)"
+	@echo "  gh-destroy          Run destroy pipeline"
 	@echo "  gh-status           View the status of recent workflow runs"
 
 # Toggles for the custom run (Default to false for safety)
@@ -36,6 +38,17 @@ gh-deploy-full: ## Run the complete pipeline
 		-f run_terraform=true \
 		-f run_ansible=true \
 		-f deploy_argo=true
+
+.PHONY: gh-deploy-duckdns
+gh-deploy-duckdns: ## Run the complete pipeline
+	@echo "$(GREEN)🚀 Triggering FULL deployment pipeline on branch: $(GH_BRANCH)$(RESET)"
+	@gh workflow run deploy.yaml --ref $(GH_BRANCH) \
+		-f environment=$(ENV) \
+		-f timeout_minutes=$(TIMEOUT) \
+		-f run_terraform=true \
+		-f run_ansible=true \
+		-f deploy_argo=true \
+		-f use_duckdns=true
 
 .PHONY: gh-deploy-infra
 gh-deploy-infra: ## Run only Terraform
