@@ -72,6 +72,9 @@ sec-install-controller:
 		--wait \
 		--timeout $(HELM_TIMEOUT)
 
+	@echo "⏳ Waiting for SealedSecrets pod to be ready..."
+	@kubectl wait --for=condition=ready pod --all -n sealed-secrets --timeout=120s
+
 	@echo "$(GREEN)✅ SealedSecrets controller installed$(RESET)"
 
 # ============================================
