@@ -19,6 +19,10 @@ help-admin:
 	@echo "  gh-deploy-custom    Run with custom flags (e.g., TF=true ANS=false ARGO=true)"
 	@echo "  gh-destroy          Run destroy pipeline"
 	@echo "  gh-status           View the status of recent workflow runs"
+	@echo ""
+	@echo "$(MAGENTA)=== Add and update IP Addresses ===$(RESET)"
+	@echo "  gh-update-ip        Update AWS Security Group with your current local IP"
+	@echo ""
 
 # Toggles for the custom run (Default to false for safety)
 TF   ?= false
@@ -103,3 +107,17 @@ gh-status: ## Watch the pipeline status
 	@echo "$(CYAN)Recent Workflow Runs:$(RESET)"
 	@gh run list --workflow=deploy.yaml --limit 5
 	@echo "\n$(YELLOW)Tip: Run 'gh run watch <RUN_ID>' to see live logs in your terminal.$(RESET)"
+
+# ==============================================================================
+# UPDATE IP ADDRESS
+# ==============================================================================
+.PHONY: gh-update-ip
+gh-update-ip: ## Update AWS Security Group with your current local IP
+	@$(eval AUTO_IP := $(shell curl -s ifconfig.me)/32)
+	@$(eval FINAL_IP := $(if $(ADMIN_IP),$(ADMIN_IP),$(AUTO_IP)))
+	@echo "$(YELLOW)🔒 Updating AWS Firewall...$(RESET)"
+	@echo "$(CYAN)📡 Detected Target IP: $(FINAL_IP)$(RESET)"
+	@gh workflow run update-ip.yaml --ref $(GH_BRANCH) \
+		-f environment=$(ENV) \
+		-f admin_ip=$(FINAL_IP)
+	@echo "$(GREEN)✅ Workflow triggered! Your new IP ($(FINAL_IP)) will be whitelisted in ~30 seconds.$(RESET)"
