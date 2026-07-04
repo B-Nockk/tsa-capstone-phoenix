@@ -11,9 +11,10 @@ RESET   := $(shell tput -Txterm sgr0 2>/dev/null || echo "")
 
 ENV              	?= dev
 CLOUD            	?= local
-HOST             	?= taskapp.local
-NAMESPACE 		 	?= taskapp-$(ENV)
-PROJECT_NAME     	?= taskapp
+APP_NAME         	?= taskapp
+PROJECT_NAME     	?= $(APP_NAME)
+NAMESPACE 		 	?= $(APP_NAME)-$(ENV)
+HOST             	?= $(APP_NAME)-$(ENV).local
 CI               	?= false
 
 ROOT_DIR         	:= $(shell pwd)

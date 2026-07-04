@@ -1,7 +1,7 @@
 # ============================================
 # k8s/cluster.mk - Kubernetes Cluster Management
 # ============================================
-K3D_CLUSTER_NAME ?= taskapp-$(ENV)
+K3D_CLUSTER_NAME ?= $(PROJECT_NAME)-$(ENV)
 K3D_PORT_MAPPING ?= 8080:80@loadbalancer
 K3D_SERVERS      ?= 1
 K3D_AGENTS       ?= 2
