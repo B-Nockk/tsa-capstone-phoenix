@@ -13,11 +13,26 @@ spec:
     - list:
         elements:
           - env: dev
-            valuesFile: values-dev.yaml
+            namespace: taskapp-dev
+            replicasBackend: "1"
+            replicasFrontend: "1"
+            flaskEnv: development
+            host: taskapp.local
+            secretsEnabled: "true"
+            sealedSecretsEnabled: "false"
+            tlsIssuer: selfsigned-cluster-issuer
           - env: prod
-            valuesFile: values-prod.yaml
-          # - env: staging
-          #   valuesFile: values-staging.yaml
+            namespace: taskapp-prod
+            replicasBackend: "3"
+            replicasFrontend: "3"
+            flaskEnv: production
+            host: taskapp.example.com
+            secretsEnabled: "false"
+            sealedSecretsEnabled: "true"
+            tlsIssuer: letsencrypt-prod
+          # - env: staging   <-- adding an env is just this block, no new file
+          #   namespace: taskapp-staging
+          #   ...
   template:
     metadata:
       name: 'taskapp-{{env}}'
@@ -31,11 +46,26 @@ spec:
         targetRevision: main
         path: helm/taskapp
         helm:
-          valueFiles:
-            - '{{valuesFile}}'
+          valuesObject:
+            namespace: '{{namespace}}'
+            replicaCount:
+              backend: '{{replicasBackend}}'
+              frontend: '{{replicasFrontend}}'
+            backend:
+              env:
+                FLASK_ENV: '{{flaskEnv}}'
+            secrets:
+              enabled: {{secretsEnabled}}
+            sealedSecrets:
+              enabled: {{sealedSecretsEnabled}}
+            externalAccess:
+              host: '{{host}}'
+            ingress:
+              tls:
+                issuer: '{{tlsIssuer}}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: 'taskapp-{{env}}'
+        namespace: '{{namespace}}'
       syncPolicy:
         automated:
           prune: true

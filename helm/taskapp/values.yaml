@@ -100,7 +100,8 @@ secrets:
   secretKey: ""         # Must be set
 
 sealedSecrets:
-  enabled: true
+  enabled: false
+
 # Namespace
 namespace: taskapp
 

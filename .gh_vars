@@ -1,7 +1,7 @@
 # .gh_vars
 ENV=dev
 CLOUD=aws
-NAMESPACE=taskapp
+APP_NAME=taskapp
 DOMAIN_NAME=nockk-tsa-capstone.duckdns.org
 ARGOCD_DOMAIN=argocd.nockk-tsa-capstone.duckdns.org
 CERT_EMAIL=ebrusontop@gmail.com
@@ -14,7 +14,8 @@ ENABLE_REMOTE_STATE=true
 DUCKDNS_DOMAIN=nockk-tsa-capstone
 ACTIONS_STEP_DEBUG=true
 ACTIONS_RUNNER_DEBUG=true
-
+BACKEND_IMAGE_TAG=5d6b8fc
+FRONTEND_IMAGE_TAG=26da2b0
 # NOTE:: ADD this to use a controlled bucket. default pattern is: $(TF_VAR_project_name)-tfstate-$(AWS_ACCOUNT_ID)-$(ENV)
 # controlled by infra.mk
 # TF_STATE_BUCKET=tsa-capstone-tfstate-dev

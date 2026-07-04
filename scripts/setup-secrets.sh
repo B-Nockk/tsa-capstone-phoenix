@@ -118,42 +118,74 @@ export POSTGRES_PASSWORD
 export SECRET_KEY
 
 # ============================================
-# 4. Create SealedSecret for GitOps
+# 4. old: Create SealedSecret for GitOps
 # ============================================
 
-echo -e "${YELLOW}🔒 Creating SealedSecret for $ENV...${NC}"
+# echo -e "${YELLOW}🔒 Creating SealedSecret for $ENV...${NC}"
 
-# Check if sealed-secrets controller is installed
-if ! kubectl get namespace "$SEALED_NAMESPACE" &>/dev/null; then
-    echo -e "${RED}❌ SealedSecrets controller not found in namespace '$SEALED_NAMESPACE'!${NC}"
-    echo -e "${YELLOW}Installing SealedSecrets...${NC}"
+# # Check if sealed-secrets controller is installed
+# if ! kubectl get namespace "$SEALED_NAMESPACE" &>/dev/null; then
+#     echo -e "${RED}❌ SealedSecrets controller not found in namespace '$SEALED_NAMESPACE'!${NC}"
+#     echo -e "${YELLOW}Installing SealedSecrets...${NC}"
 
-    helm repo add sealed-secrets "$SEALED_SECRETS_REPO" --force-update
-    helm upgrade --install sealed-secrets sealed-secrets/sealed-secrets \
-        --namespace "$SEALED_NAMESPACE" \
-        --create-namespace \
-        --wait
+#     helm repo add sealed-secrets "$SEALED_SECRETS_REPO" --force-update
+#     helm upgrade --install sealed-secrets sealed-secrets/sealed-secrets \
+#         --namespace "$SEALED_NAMESPACE" \
+#         --create-namespace \
+#         --wait
 
-    echo -e "${GREEN}✅ SealedSecrets installed${NC}"
-fi
+#     echo -e "${GREEN}✅ SealedSecrets installed${NC}"
+# fi
 
-# Create the sealed secret
-mkdir -p "$SEALED_DIR"
+# # Create the sealed secret
+# mkdir -p "$SEALED_DIR"
 
-# Generate sealed secret from environment
+# # Generate sealed secret from environment
+# kubectl create secret generic "$SECRET_NAME" \
+#     --namespace "$APP_NAMESPACE" \
+#     --dry-run=client \
+#     -o yaml \
+#     --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+#     --from-literal=SECRET_KEY="$SECRET_KEY" \
+#     | kubeseal \
+#         --controller-name="$SEALED_CONTROLLER_NAME" \
+#         --controller-namespace="$SEALED_NAMESPACE" \
+#         --format yaml \
+#     > "$SEALED_DIR/sealed-secret.yaml"
+
+# echo -e "${GREEN}✅ SealedSecret created at: $SEALED_DIR/sealed-secret.yaml${NC}"
+
+
+echo -e "${YELLOW}🔒 Generating Automated SealedSecret for $ENV...${NC}"
+
+# 1. Generate the raw sealed secret into a temporary file
 kubectl create secret generic "$SECRET_NAME" \
     --namespace "$APP_NAMESPACE" \
     --dry-run=client \
     -o yaml \
     --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
     --from-literal=SECRET_KEY="$SECRET_KEY" \
+    --from-literal=GRAFANA_PASSWORD="$GRAFANA_PASSWORD" \
     | kubeseal \
         --controller-name="$SEALED_CONTROLLER_NAME" \
         --controller-namespace="$SEALED_NAMESPACE" \
         --format yaml \
-    > "$SEALED_DIR/sealed-secret.yaml"
+    > /tmp/sealed-${ENV}.yaml
 
-echo -e "${GREEN}✅ SealedSecret created at: $SEALED_DIR/sealed-secret.yaml${NC}"
+# 2. Define the target Helm templates directory
+HELM_TEMPLATE_DIR="$ROOT_DIR/helm/taskapp/templates"
+mkdir -p "$HELM_TEMPLATE_DIR"
+TARGET_FILE="$HELM_TEMPLATE_DIR/sealedsecret-${ENV}.yaml"
+
+# 3. Wrap the file in a Helm conditional so it only deploys to the matching environment
+echo "{{- if eq .Values.namespace \"$APP_NAMESPACE\" }}" > "$TARGET_FILE"
+cat /tmp/sealed-${ENV}.yaml >> "$TARGET_FILE"
+echo "{{- end }}" >> "$TARGET_FILE"
+
+# 4. Clean up
+rm /tmp/sealed-${ENV}.yaml
+
+echo -e "${GREEN}✅ Success! Automated Helm template created at: $TARGET_FILE${NC}"
 
 # ============================================
 # 5. Inject Secrets to Cluster (Optional)

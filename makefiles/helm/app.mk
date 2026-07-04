@@ -77,11 +77,21 @@ helm-lint: ## Lint Helm chart
 helm-history: ## Show release history
 	@helm history $(PROJECT_NAME) -n $(NAMESPACE)
 
+# helm-template: ## Render Helm templates
+# 	@helm template $(PROJECT_NAME) $(HELM_DIR) --values $(HELM_DIR)/values-$(ENV).yaml
+
+# helm-dry-run: ## Dry run Helm deployment
+# 	@helm upgrade --install $(PROJECT_NAME) $(HELM_DIR) \
+# 		--namespace $(NAMESPACE) \
+# 		--values $(HELM_DIR)/values-$(ENV).yaml \
+# 		--dry-run --debug
+
+
 helm-template: ## Render Helm templates
-	@helm template $(PROJECT_NAME) $(HELM_DIR) --values $(HELM_DIR)/values-$(ENV).yaml
+	@helm template $(PROJECT_NAME) $(HELM_DIR) $(VALUES_FLAG)
 
 helm-dry-run: ## Dry run Helm deployment
 	@helm upgrade --install $(PROJECT_NAME) $(HELM_DIR) \
 		--namespace $(NAMESPACE) \
-		--values $(HELM_DIR)/values-$(ENV).yaml \
+		$(VALUES_FLAG) \
 		--dry-run --debug
