@@ -14,22 +14,22 @@ spec:
         elements:
           - env: dev
             namespace: taskapp-dev
-            replicasBackend: "1"
-            replicasFrontend: "1"
+            replicasBackend: "2"
+            replicasFrontend: "2"
             flaskEnv: development
             host: taskapp.local
             secretsEnabled: "true"
             sealedSecretsEnabled: "false"
             tlsIssuer: selfsigned-cluster-issuer
-          - env: prod
-            namespace: taskapp-prod
-            replicasBackend: "3"
-            replicasFrontend: "3"
-            flaskEnv: production
-            host: taskapp.example.com
-            secretsEnabled: "false"
-            sealedSecretsEnabled: "true"
-            tlsIssuer: letsencrypt-prod
+          # - env: prod
+          #   namespace: taskapp-prod
+          #   replicasBackend: "3"
+          #   replicasFrontend: "3"
+          #   flaskEnv: production
+          #   host: taskapp.example.com
+          #   secretsEnabled: "false"
+          #   sealedSecretsEnabled: "true"
+          #   tlsIssuer: letsencrypt-prod
           # - env: staging   <-- adding an env is just this block, no new file
           #   namespace: taskapp-staging
           #   ...
