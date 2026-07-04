@@ -42,9 +42,11 @@ jobs:
           COMBINED_IPS="[\"$RUNNER_IP\", \"${{ inputs.admin_ip }}\"]"
           echo "Applying IPs: $COMBINED_IPS"
 
-          # 3. Apply ONLY the network layer changes
+          # 3. Let the Makefile handle the complex S3 backend initialization!
+          make tf-init ENV=${{ inputs.environment }}
+
+          # 4. Run the apply, using -var to explicitly override the tfvars file
           cd infra/terraform
-          terraform init
           terraform apply -auto-approve \
             -var-file="${{ inputs.environment }}.tfvars" \
             -var="allowed_ssh_ips=$COMBINED_IPS"
