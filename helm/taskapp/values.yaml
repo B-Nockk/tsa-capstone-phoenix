@@ -95,9 +95,12 @@ ingress:
 
 # Secrets (values are set via --set or external secrets)
 secrets:
+  enabled: false
   postgresPassword: ""  # Must be set
   secretKey: ""         # Must be set
 
+sealedSecrets:
+  enabled: true
 # Namespace
 namespace: taskapp
 

@@ -40,32 +40,32 @@ spec:
         - name: DATABASE_NAME
           valueFrom:
             configMapKeyRef:
-              name: taskapp-config
+              name: {{ .Chart.Name }}-config
               key: POSTGRES_DB
         - name: DATABASE_USER
           valueFrom:
             configMapKeyRef:
-              name: taskapp-config
+              name: {{ .Chart.Name }}-config
               key: POSTGRES_USER
         - name: DATABASE_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: taskapp-secrets
+              name: {{ .Chart.Name }}-secrets
               key: POSTGRES_PASSWORD
         - name: SECRET_KEY
           valueFrom:
             secretKeyRef:
-              name: taskapp-secrets
+              name: {{ .Chart.Name }}-secrets
               key: SECRET_KEY
         - name: FLASK_ENV
           valueFrom:
             configMapKeyRef:
-              name: taskapp-config
+              name: {{ .Chart.Name }}-config
               key: FLASK_ENV
         - name: CORS_ORIGINS
           valueFrom:
             configMapKeyRef:
-              name: taskapp-config
+              name: {{ .Chart.Name }}-config
               key: CORS_ORIGINS
         resources:
           requests:

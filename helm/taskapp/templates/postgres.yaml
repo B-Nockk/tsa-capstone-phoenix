@@ -42,7 +42,7 @@ spec:
         - name: POSTGRES_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: taskapp-secrets
+              name: {{ .Chart.Name }}-secrets
               key: POSTGRES_PASSWORD
         volumeMounts:
         - name: postgres-storage
