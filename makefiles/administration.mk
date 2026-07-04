@@ -81,7 +81,7 @@ gh-deploy-custom: ## Run custom pipeline
 gh-destroy: ## Trigger the destroy pipeline
 	@echo "$(RED)🔥 Triggering DESTROY pipeline on branch: $(GH_BRANCH)$(RESET)"
 	@gh workflow run destroy.yaml --ref $(GH_BRANCH) \
-		-f environment=$(ENV)
+		-f environment=$(ENV) \
 		-f safety_catch=DESTROY
 	@echo "$(YELLOW)Note: Verify that your destroy.yaml workflow is configured to accept the environment input.$(RESET)"
 
