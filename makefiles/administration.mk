@@ -102,6 +102,15 @@ gh-destroy: ## Trigger the destroy pipeline
 		-f safety_catch=DESTROY
 	@echo "$(YELLOW)Note: Verify that your destroy.yaml workflow is configured to accept the environment input.$(RESET)"
 
+.PHONY: gh-unlock
+gh-unlock: ## Force-unlock stuck TF state (usage: make gh-unlock LOCK_ID=xxxx)
+	@test -n "$(LOCK_ID)" || { echo "$(RED)❌ Provide LOCK_ID=<id-from-error>$(RESET)"; exit 1; }
+	@gh workflow run troubleshoot.yaml \
+		--field environment=$(ENV) \
+		--field action=tf-unlock \
+		--field lock_id=$(LOCK_ID) \
+		--field confirm=CONFIRM
+
 .PHONY: gh-status
 gh-status: ## Watch the pipeline status
 	@echo "$(CYAN)Recent Workflow Runs:$(RESET)"

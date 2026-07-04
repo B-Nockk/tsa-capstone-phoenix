@@ -1,0 +1,66 @@
+name: Troubleshoot (Maintenance Ops)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to target'
+        required: true
+        default: 'dev'
+        type: choice
+        options: [dev, prod]
+      action:
+        description: 'Maintenance action to run'
+        required: true
+        type: choice
+        options: [tf-unlock]
+      lock_id:
+        description: 'Lock ID (required for tf-unlock, from the error message)'
+        required: false
+        default: ''
+      confirm:
+        description: 'Type CONFIRM to proceed'
+        required: true
+        default: ''
+
+env:
+  ENV: ${{ github.event.inputs.environment || 'dev' }}
+  CLOUD: aws
+
+jobs:
+  troubleshoot:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'CONFIRM'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Load GitHub Variables into Environment
+        env:
+          GH_VARS: ${{ toJSON(vars) }}
+        run: |
+          echo "$GH_VARS" | jq -r 'to_entries[] | if (.key | startswith("TF_VAR_")) then "TF_VAR_" + (.key[7:] | ascii_downcase) + "<<__EOV__\n\(.value)\n__EOV__" else "\(.key)<<__EOV__\n\(.value)\n__EOV__" end' >> "$GITHUB_ENV"
+
+      - name: Setup CI Dependencies
+        run: make setup-ci-deps
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.TF_VAR_aws_region }}
+
+      - name: Ensure backend exists and initialize
+        run: |
+          make tf-backend-setup ENV=${{ env.ENV }}
+          make tf-init ENV=${{ env.ENV }}
+
+      - name: Run tf-unlock
+        if: github.event.inputs.action == 'tf-unlock'
+        run: |
+          if [ -z "${{ github.event.inputs.lock_id }}" ]; then
+            echo "❌ lock_id is required for tf-unlock"; exit 1
+          fi
+          make tf-unlock ENV=${{ env.ENV }} LOCK_ID=${{ github.event.inputs.lock_id }}
