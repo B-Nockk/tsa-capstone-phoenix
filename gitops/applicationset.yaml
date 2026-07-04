@@ -46,6 +46,12 @@ spec:
         targetRevision: main
         path: helm/taskapp
         helm:
+          # Parameters safely cast "true"/"false" strings into actual booleans for Helm
+          parameters:
+            - name: secrets.enabled
+              value: '{{secretsEnabled}}'
+            - name: sealedSecrets.enabled
+              value: '{{sealedSecretsEnabled}}'
           valuesObject:
             namespace: '{{namespace}}'
             replicaCount:
@@ -54,10 +60,6 @@ spec:
             backend:
               env:
                 FLASK_ENV: '{{flaskEnv}}'
-            secrets:
-              enabled: {{secretsEnabled}}
-            sealedSecrets:
-              enabled: {{sealedSecretsEnabled}}
             externalAccess:
               host: '{{host}}'
             ingress:
