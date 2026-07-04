@@ -1,25 +1,34 @@
 ---
 - name: Setup complete k3s cluster
   hosts: all
-  become: yes
-  gather_facts: yes
-  any_errors_fatal: true # Stops execution entirely if any node crashes
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  pre_tasks:
+    # The tasks inside this file have built-in 300s timeouts,
+    # so they handle their own retries perfectly.
+    - name: Run node-ready preflight checks
+      ansible.builtin.include_tasks: tasks/wait_for_node_ready.yml
+      # register: preflight_result
+      # retries: 3
+      # delay: 20
+      # until: preflight_result is succeeded
 
   roles:
     - base-hardening
 
 - name: Setup control plane
   hosts: control_plane
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: false # Facts were already gathered in pre_tasks
 
   roles:
     - k3s-server
 
 - name: Setup workers
   hosts: workers
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: false # Facts were already gathered in pre_tasks
 
   roles:
     - k3s-agent

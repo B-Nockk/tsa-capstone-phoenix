@@ -24,6 +24,10 @@ help-terraform:
 	@echo "  tf-destroy            Destroy infrastructure"
 	@echo "  tf-output             Show Terraform outputs"
 	@echo "  tf-ssh                SSH to control plane"
+	@echo ""
+	@echo "$(MAGENTA)=== Troubleshooting ===$(RESET)"
+	@echo "  tf-unlock             Force-unlock a stuck Terraform state lock"
+	@echo ""
 
 .PHONY: tf-backend-setup
 tf-backend-setup: ## Idempotently verify or create S3 bucket and DynamoDB table
@@ -96,3 +100,12 @@ tf-output: ## Show Terraform outputs
 .PHONY: tf-ssh
 tf-ssh: ## SSH to control plane
 	@cd $(TF_DIR) && terraform output -raw ssh_command 2>/dev/null | bash || echo "❌ Control plane not found"
+
+# ==============================================================================
+# Troubleshoting terraform
+# ==============================================================================
+
+.PHONY: tf-unlock
+tf-unlock: ## Force-unlock a stuck Terraform state lock (usage: make tf-unlock LOCK_ID=xxxx)
+	@test -n "$(LOCK_ID)" || { echo "$(RED)❌ Provide LOCK_ID=<id-from-error>$(RESET)"; exit 1; }
+	@cd $(TF_DIR) && terraform force-unlock -force $(LOCK_ID)

@@ -1,5 +1,5 @@
 ---
 k3s_version: "v1.28.8+k3s1"
-k3s_server_args: "--write-kubeconfig-mode 644 --disable traefik --flannel-backend=none --cluster-cidr=192.168.0.0/16"
+k3s_server_args: "--write-kubeconfig-mode 644 --disable traefik --flannel-backend=none --cluster-cidr={{ k3s_pod_cidr | default('192.168.0.0/16') }} --service-cidr={{ k3s_service_cidr | default('10.43.0.0/16') }}"
 k3s_install_dir: "/usr/local/bin"
 calico_version: "v3.26.1"

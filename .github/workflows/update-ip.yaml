@@ -1,0 +1,50 @@
+name: Update Admin IP Whitelist
+
+on:
+  workflow_dispatch:
+    inputs:
+      admin_ip:
+        description: 'New public IP address with CIDR (e.g., 1.2.3.4/32)'
+        required: true
+        type: string
+      environment:
+        description: 'Environment to update (dev/prod)'
+        required: true
+        default: 'dev'
+        type: environment
+
+jobs:
+  update-firewall:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.TF_VAR_AWS_REGION }}
+
+      - name: Update AWS Security Groups
+        run: |
+          # 1. Grab the ephemeral runner's IP
+          RUNNER_IP=$(curl -s https://checkip.amazonaws.com)/32
+          echo "Runner IP: $RUNNER_IP"
+
+          # 2. Construct the list for Terraform
+          COMBINED_IPS="[\"$RUNNER_IP\", \"${{ inputs.admin_ip }}\"]"
+          echo "Applying IPs: $COMBINED_IPS"
+
+          # 3. Apply ONLY the network layer changes
+          cd infra/terraform
+          terraform init
+          terraform apply -auto-approve \
+            -var-file="${{ inputs.environment }}.tfvars" \
+            -var="allowed_ssh_ips=$COMBINED_IPS"

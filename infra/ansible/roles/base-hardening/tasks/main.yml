@@ -29,11 +29,19 @@
 # ==============================================================================
 # SYSTEM UPDATES & PACKAGES
 # ==============================================================================
+# TODO:: update this to have vars for lock_timeout & apt_cache_time to auto skip or pass on a configurable timeout
+# - name: Update apt cache
+#   ansible.builtin.apt:
+#     update_cache: true
+#     cache_valid_time: "{{ apt_cache_time | default(86400) }}"
+#     lock_timeout: 1200 # Bumped to 20 mins
+#   throttle: 1 # Forces Ansible to update packages one server at a time
 - name: Update apt cache
   ansible.builtin.apt:
     update_cache: true
-    cache_valid_time: 3600
-    lock_timeout: 500
+    cache_valid_time: 86400
+    lock_timeout: 800 # Bumped to 20 mins
+  ignore_errors: true
   throttle: 1 # Forces Ansible to update packages one server at a time
 
 - name: Install base packages
@@ -64,10 +72,15 @@
     - "80"
     - "443"
 
-- name: Configure UFW - allow internal VPC traffic for K8s/Calico
+- name: Configure UFW - allow internal K8s traffic (VPC, Pods, Services)
   ufw:
     rule: allow
-    src: "{{ vpc_cidr }}"
+    src: "{{ item }}"
+  loop:
+    - "{{ vpc_cidr }}"
+    - "{{ k3s_pod_cidr | default('192.168.0.0/16') }}"
+    - "{{ k3s_service_cidr | default('10.43.0.0/16') }}"
+  when: item is defined and item != ''
 
 - name: Configure UFW - allow K8s API from allowed IPs
   ufw:
@@ -82,6 +95,16 @@
   ufw:
     state: enabled
     policy: deny
+
+- name: Configure UFW - Allow K8s packet forwarding in kernel
+  ansible.builtin.lineinfile:
+    path: /etc/default/ufw
+    regexp: "^DEFAULT_FORWARD_POLICY="
+    line: 'DEFAULT_FORWARD_POLICY="ACCEPT"'
+
+- name: Reload UFW to apply forwarding policy
+  ansible.builtin.command: ufw reload
+  changed_when: false
 
 # ==============================================================================
 # SECURITY & HARDENING

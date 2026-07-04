@@ -1,13 +1,18 @@
 ---
 - name: Setup k3s worker nodes
   hosts: workers
-  become: yes
-  gather_facts: yes
+  become: true
+  gather_facts: false # Facts are gathered manually in the preflight sequence
+  any_errors_fatal: true
+
+  pre_tasks:
+    - name: Run node-ready preflight checks
+      ansible.builtin.include_tasks: tasks/wait_for_node_ready.yml
 
   roles:
     - base-hardening
 
   tasks:
     - name: Include k3s-agent role
-      include_role:
+      ansible.builtin.include_role:
         name: k3s-agent
