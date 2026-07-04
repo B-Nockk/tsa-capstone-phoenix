@@ -49,6 +49,9 @@
       runs-on: ubuntu-latest
       timeout-minutes: ${{ fromJSON(github.event.inputs.timeout_minutes || '45') }}
       environment: ${{ github.event.inputs.environment || 'dev' }}
+      permissions:
+        contents: write
+
 
       steps:
         - name: Checkout Code
@@ -271,6 +274,17 @@
             fi
 
         # --- STAGE 4: GITOPS DEPLOYMENT ---
+        - name: Generate and commit sealed secrets
+          if: github.event.inputs.deploy_argo != 'false'
+          env:
+            POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+            SECRET_KEY: ${{ secrets.SECRET_KEY }}
+            GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
+            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          run: |
+            make sec-generate ENV=${{ env.ENV }} AUTO_INJECT=true
+
         - name: Deploy via ArgoCD
           if: github.event.inputs.deploy_argo != 'false'
           run: |

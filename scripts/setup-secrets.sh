@@ -196,9 +196,9 @@ echo -e "${GREEN}✅ Success! Automated Helm template created at: $TARGET_FILE${
 # 5. Inject Secrets to Cluster (Optional)
 # ============================================
 
-echo -e "${CYAN}========================================${NC}"
-echo -e "${YELLOW}⚠️  STEP 5 HAS BEEN SUN SETTED        ${NC}"
-echo -e "${CYAN}========================================${NC}"
+# echo -e "${CYAN}========================================${NC}"
+# echo -e "${YELLOW}⚠️  STEP 5 HAS BEEN SUN SETTED        ${NC}"
+# echo -e "${CYAN}========================================${NC}"
 
 # if [ "$AUTO_INJECT" = "true" ]; then
 #     echo -e "${YELLOW}🔑 AUTO_INJECT=true: Injecting secrets to cluster automatically...${NC}"
@@ -228,6 +228,26 @@ echo -e "${CYAN}========================================${NC}"
 #         echo -e "${YELLOW}⏭️  Skipping cluster injection.${NC}"
 #     fi
 # fi
+
+# ============================================
+# 5. Commit & Push (CI only — gated by AUTO_INJECT)
+# ============================================
+if [ "$AUTO_INJECT" = "true" ]; then
+    echo -e "${YELLOW}📦 Committing generated SealedSecret to git...${NC}"
+    cd "$ROOT_DIR"
+    git config user.name "github-actions[bot]"
+    git config user.email "github-actions[bot]@users.noreply.github.com"
+    git add "$TARGET_FILE"
+    if git diff --cached --quiet; then
+        echo -e "${GREEN}✅ No changes to commit (sealed secret unchanged)${NC}"
+    else
+        git commit -m "chore: update sealed secret for $ENV [skip ci]"
+        git push origin HEAD:${GITHUB_REF_NAME:-$(git branch --show-current)}
+        echo -e "${GREEN}✅ Sealed secret committed and pushed${NC}"
+    fi
+else
+    echo -e "${YELLOW}⏭️  AUTO_INJECT=false — skipping git commit (local/manual run)${NC}"
+fi
 
 # ============================================
 # 6. Output Summary

@@ -18,8 +18,8 @@ spec:
             replicasFrontend: "2"
             flaskEnv: development
             host: taskapp.local
-            secretsEnabled: "true"
-            sealedSecretsEnabled: "false"
+            secretsEnabled: "false"
+            sealedSecretsEnabled: "true"
             tlsIssuer: selfsigned-cluster-issuer
           # - env: prod
           #   namespace: taskapp-prod
