@@ -60,7 +60,8 @@
           run: |
             echo "🔄 Dynamically loading repository variables..."
             # Intercept TF_VARs and force the variable name back to lowercase for Terraform
-            echo "$GH_VARS" | jq -r 'to_entries[] | if (.key | startswith("TF_VAR_")) then "TF_VAR_" + (.key[7:] | ascii_downcase) + "<<__EOV__\n\(.value)\n__EOV__" else "\(.key)<<__EOV__\n\(.value)\n__EOV__" end' >> "$GITHUB_ENV"
+            # echo "$GH_VARS" | jq -r 'to_entries[] | if (.key | startswith("TF_VAR_")) then "TF_VAR_" + (.key[7:] | ascii_downcase) + "<<__EOV__\n\(.value)\n__EOV__" else "\(.key)<<__EOV__\n\(.value)\n__EOV__" end' >> "$GITHUB_ENV"
+            echo "$GH_VARS" | jq -r 'to_entries[] | select(.key != "NAMESPACE") | if (.key | startswith("TF_VAR_")) then "TF_VAR_" + (.key[7:] | ascii_downcase) + "<<__EOV__\n\(.value)\n__EOV__" else "\(.key)<<__EOV__\n\(.value)\n__EOV__" end' >> "$GITHUB_ENV"
             echo "✅ Variables loaded!"
 
         - name: Setup CI Dependencies
@@ -274,8 +275,10 @@
           if: github.event.inputs.deploy_argo != 'false'
           run: |
             # Inject repo dynamically (with .git appended)
-            sed -i "s|repoURL:.*|repoURL: ${{ github.server_url }}/${{ github.repository }}.git|g" gitops/application.${{ env.ENV }}.yaml
-            sed -i "s|targetRevision:.*|targetRevision: ${{ github.ref_name }}|g" gitops/application.${{ env.ENV }}.yaml
+            # sed -i "s|repoURL:.*|repoURL: ${{ github.server_url }}/${{ github.repository }}.git|g" gitops/application.${{ env.ENV }}.yaml
+            # sed -i "s|targetRevision:.*|targetRevision: ${{ github.ref_name }}|g" gitops/application.${{ env.ENV }}.yaml
+            sed -i "s|repoURL:.*|repoURL: ${{ github.server_url }}/${{ github.repository }}.git|g" gitops/applicationset.yaml
+            sed -i "s|targetRevision:.*|targetRevision: ${{ github.ref_name }}|g" gitops/applicationset.yaml
             make argo-deploy ENV=${{ env.ENV }} HOST=${{ env.HOST }}
 
         - name: Run Tests
