@@ -1,0 +1,45 @@
+# gitops/applicationset.yaml
+# Replaces gitops/application.dev.yaml + gitops/application.prod.yaml.
+# To add an environment (e.g. staging), add one entry to `elements` below —
+# namespace, project, and syncPolicy are all generated consistently from the
+# same template, so they can't drift out of sync between environments.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: taskapp
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - env: dev
+            valuesFile: values-dev.yaml
+          - env: prod
+            valuesFile: values-prod.yaml
+          # - env: staging
+          #   valuesFile: values-staging.yaml
+  template:
+    metadata:
+      name: 'taskapp-{{env}}'
+      namespace: argocd
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: taskapp
+      source:
+        repoURL: https://github.com/B-Nockk/tsa-capstone-phoenix.git
+        targetRevision: main
+        path: helm/taskapp
+        helm:
+          valueFiles:
+            - '{{valuesFile}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'taskapp-{{env}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true
