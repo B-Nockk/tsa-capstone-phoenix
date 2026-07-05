@@ -11,31 +11,29 @@ spec:
   failedJobsHistoryLimit: 1
   jobTemplate:
     spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 600
       template:
+        metadata:
+          labels:
+            app: db-backup
         spec:
           containers:
           - name: backup-worker
-            # Use the postgres image so we natively have the pg_dump tool
             image: postgres:16-alpine
             command:
             - /bin/sh
             - -c
             - |
-              # Install AWS CLI into the temporary alpine pod
               apk add --no-cache aws-cli
 
               TIMESTAMP=$(date +%Y%m%d_%H%M%S)
               BACKUP_FILE="/tmp/taskapp_backup_${TIMESTAMP}.sql.gz"
 
               echo "⏳ Starting database backup..."
-              # Dump the DB and compress it immediately to save space
               pg_dump -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} | gzip > ${BACKUP_FILE}
 
               echo "☁️ Uploading to AWS S3..."
-              # The bucket name pattern matches what Terraform created in Step 1
-              AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-              TARGET_BUCKET="tsa-capstone-backups-{{ regexReplaceAll "taskapp-" .Values.namespace "" }}-${AWS_ACCOUNT_ID}"
-
               aws s3 cp ${BACKUP_FILE} s3://${TARGET_BUCKET}/postgres/${TIMESTAMP}.sql.gz
 
               echo "✅ Backup complete!"
@@ -67,5 +65,14 @@ spec:
                   key: AWS_SECRET_ACCESS_KEY
             - name: AWS_DEFAULT_REGION
               value: "eu-north-1"
+            - name: TARGET_BUCKET
+              value: {{ required "backup.bucketName must be set — see db_backup_bucket_name Terraform output" .Values.backup.bucketName | quote }}
+            resources:
+              requests:
+                memory: "128Mi"
+                cpu: "100m"
+              limits:
+                memory: "256Mi"
+                cpu: "300m"
           restartPolicy: OnFailure
 {{- end }}

@@ -66,8 +66,8 @@ frontend:
       memory: "256Mi"
       cpu: "200m"
   service:
-    port: 80
-    targetPort: 80
+    port: 8000
+    targetPort: 8000
 
 # Ingress configuration
 ingress:
@@ -153,3 +153,9 @@ hpa:
       targetAverageUtilization: 70
     memory:
       targetAverageUtilization: 80
+
+backup:
+  bucketName: ""   # populated by CI from `terraform output db_backup_bucket_name`
+
+migrations:
+  enabled: true

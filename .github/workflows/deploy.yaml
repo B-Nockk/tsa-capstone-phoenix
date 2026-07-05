@@ -285,6 +285,12 @@
           run: |
             make sec-generate ENV=${{ env.ENV }} AUTO_INJECT=true
 
+        - name: Inject backup bucket name
+          if: github.event.inputs.deploy_argo != 'false'
+          run: |
+            BUCKET=$(cd infra/terraform && terraform output -raw db_backup_bucket_name)
+            sed -i "s|INJECT_BACKUP_BUCKET|$BUCKET|g" gitops/applicationset.yaml
+
         - name: Deploy via ArgoCD
           if: github.event.inputs.deploy_argo != 'false'
           run: |

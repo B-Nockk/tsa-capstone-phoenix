@@ -1,0 +1,56 @@
+{{- if .Values.migrations.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "taskapp.fullname" . }}-migrate-{{ .Values.images.backend.tag }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app: db-migrate
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: migrate
+        image: "{{ .Values.images.backend.repository }}:{{ .Values.images.backend.tag }}"
+        imagePullPolicy: {{ .Values.images.backend.pullPolicy }}
+        # command: ["flask", "db", "upgrade"]
+        command: ["alembic", "upgrade", "head"]
+        env:
+        - name: DATABASE_HOST
+          value: postgres
+        - name: DATABASE_PORT
+          value: "5432"
+        - name: DATABASE_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Chart.Name }}-config
+              key: POSTGRES_DB
+        - name: DATABASE_USER
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Chart.Name }}-config
+              key: POSTGRES_USER
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Chart.Name }}-secrets
+              key: POSTGRES_PASSWORD
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Chart.Name }}-secrets
+              key: SECRET_KEY
+        - name: FLASK_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Chart.Name }}-config
+              key: FLASK_ENV
+{{- end }}
