@@ -17,10 +17,10 @@ spec:
             replicasBackend: "2"
             replicasFrontend: "2"
             flaskEnv: development
-            host: taskapp.local
+            host: INJECT_DOMAIN_NAME
             secretsEnabled: "false"
             sealedSecretsEnabled: "true"
-            tlsIssuer: selfsigned-cluster-issuer
+            tlsIssuer: INJECT_TLS_ISSUER
           # - env: prod
           #   namespace: taskapp-prod
           #   replicasBackend: "3"

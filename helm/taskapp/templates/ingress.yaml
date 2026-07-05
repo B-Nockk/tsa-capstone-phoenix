@@ -12,7 +12,7 @@ spec:
   ingressClassName: {{ .Values.ingress.className }}
   rules:
     {{- range .Values.ingress.hosts }}
-    - host: {{ .host | quote }}
+    - host: {{ required "A valid domain name is REQUIRED for this deployment!" .host | quote }}
       http:
         paths:
           {{- range .paths }}

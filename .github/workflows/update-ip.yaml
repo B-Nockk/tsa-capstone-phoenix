@@ -13,6 +13,10 @@ on:
         default: 'dev'
         type: environment
 
+env:
+  ENV: ${{ inputs.environment }}
+  CLOUD: aws
+
 jobs:
   update-firewall:
     runs-on: ubuntu-latest
@@ -22,6 +26,12 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Load GitHub Variables into Environment
+        env:
+          GH_VARS: ${{ toJSON(vars) }}
+        run: |
+          echo "$GH_VARS" | jq -r 'to_entries[] | if (.key | startswith("TF_VAR_")) then "TF_VAR_" + (.key[7:] | ascii_downcase) + "<<__EOV__\n\(.value)\n__EOV__" else "\(.key)<<__EOV__\n\(.value)\n__EOV__" end' >> "$GITHUB_ENV"
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
@@ -30,23 +40,44 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.TF_VAR_AWS_REGION }}
+          aws-region: ${{ env.TF_VAR_aws_region }}
 
-      - name: Update AWS Security Groups
+      - name: Validate new admin IP format
         run: |
-          # 1. Grab the ephemeral runner's IP
-          RUNNER_IP=$(curl -s https://checkip.amazonaws.com)/32
-          echo "Runner IP: $RUNNER_IP"
+          if ! [[ "${{ inputs.admin_ip }}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$ ]]; then
+            echo "❌ admin_ip must be CIDR notation, e.g. 1.2.3.4/32"
+            exit 1
+          fi
 
-          # 2. Construct the list for Terraform
-          COMBINED_IPS="[\"$RUNNER_IP\", \"${{ inputs.admin_ip }}\"]"
+      - name: Ensure backend exists and initialize
+        run: |
+          make tf-backend-setup ENV=${{ env.ENV }}
+          make tf-init ENV=${{ env.ENV }}
+
+      - name: Apply updated SSH allow-list (targeted — minimal blast radius)
+        run: |
+          RUNNER_IP="$(curl -s https://checkip.amazonaws.com)/32"
+          echo "Runner IP: $RUNNER_IP"
+          COMBINED_IPS=$(jq -c -n --arg a "${{ inputs.admin_ip }}" --arg r "$RUNNER_IP" '[$a, $r]')
           echo "Applying IPs: $COMBINED_IPS"
 
-          # 3. Let the Makefile handle the complex S3 backend initialization!
-          make tf-init ENV=${{ inputs.environment }}
-
-          # 4. Run the apply, using -var to explicitly override the tfvars file
           cd infra/terraform
           terraform apply -auto-approve \
-            -var-file="${{ inputs.environment }}.tfvars" \
-            -var="allowed_ssh_ips=$COMBINED_IPS"
+            -var-file="env/${{ env.ENV }}.tfvars" \
+            -var="allowed_ssh_ips=$COMBINED_IPS" \
+            -target=module.security.aws_security_group_rule.ssh
+
+      - name: Persist new IP to repo variable (so future deploys don't revert it)
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT_VARS }}
+        run: |
+          gh variable set TF_VAR_ALLOWED_SSH_IPS \
+            --body "[\"${{ inputs.admin_ip }}\"]" \
+            --repo ${{ github.repository }}
+
+      - name: Summary
+        run: |
+          echo "## 🔒 Admin IP Whitelist Updated" >> $GITHUB_STEP_SUMMARY
+          echo "New IP: \`${{ inputs.admin_ip }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Applied to: \`${{ env.ENV }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "TF_VAR_ALLOWED_SSH_IPS updated — future deploy runs will keep this IP." >> $GITHUB_STEP_SUMMARY
