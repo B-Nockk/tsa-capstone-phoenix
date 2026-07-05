@@ -30,8 +30,8 @@ spec:
             app: backend
       securityContext:
         runAsNonRoot: true
-        # runAsUser: 1000 # TODO:: confirm if this should be added in
-        # runAsGroup: 3000
+        runAsUser: 10001
+        runAsGroup: 30001
         # fsGroup: 3000
         seccompProfile:
           type: RuntimeDefault
