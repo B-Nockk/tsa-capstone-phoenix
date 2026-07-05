@@ -28,10 +28,23 @@ spec:
       labels:
         app: postgres
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+
       containers:
       - name: postgres
         image: "{{ .Values.images.postgres.repository }}:{{ .Values.images.postgres.tag }}"
         imagePullPolicy: {{ .Values.images.postgres.pullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
         ports:
         - containerPort: 5432
         env:

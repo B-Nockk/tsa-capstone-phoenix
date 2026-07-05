@@ -26,10 +26,22 @@ spec:
         labelSelector:
           matchLabels:
             app: backend
+      securityContext:
+        runAsNonRoot: true
+        # runAsUser: 1000 # TODO:: confirm if this should be added in
+        # runAsGroup: 3000
+        # fsGroup: 3000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: backend
         image: "{{ .Values.images.backend.repository }}:{{ .Values.images.backend.tag }}"
         imagePullPolicy: {{ .Values.images.backend.pullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
         ports:
         - containerPort: {{ .Values.backend.service.targetPort }}
         env:
@@ -86,6 +98,8 @@ spec:
             port: {{ .Values.backend.service.targetPort }}
           initialDelaySeconds: 10
           periodSeconds: 5
+        command: ["gunicorn"]
+        args: ["--workers", "3", "--bind", "0.0.0.0:5000", "--access-logfile", "-", "run:app"]
 ---
 apiVersion: v1
 kind: Service
