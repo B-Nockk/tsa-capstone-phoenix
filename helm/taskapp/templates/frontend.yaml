@@ -26,10 +26,37 @@ spec:
         labelSelector:
           matchLabels:
             app: frontend
+      securityContext:
+        runAsUser: 101
+        runAsNonRoot: true
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+      - name: nginx-conf
+        configMap:
+          name: {{ .Chart.Name }}-frontend-nginx
+      - name: nginx-cache
+        emptyDir: {}
+      - name: nginx-run
+        emptyDir: {}
       containers:
       - name: frontend
         image: "{{ .Values.images.frontend.repository }}:{{ .Values.images.frontend.tag }}"
         imagePullPolicy: {{ .Values.images.frontend.pullPolicy }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: nginx-conf
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+        - name: nginx-cache
+          mountPath: /var/cache/nginx
+        - name: nginx-run
+          mountPath: /var/run
         ports:
         - containerPort: {{ .Values.frontend.service.targetPort }}
         resources:

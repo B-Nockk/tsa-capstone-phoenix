@@ -21,6 +21,7 @@ spec:
             secretsEnabled: "false"
             sealedSecretsEnabled: "true"
             tlsIssuer: INJECT_TLS_ISSUER
+            backupBucket: INJECT_BACKUP_BUCKET
           # - env: prod
           #   namespace: taskapp-prod
           #   replicasBackend: "3"
@@ -63,25 +64,30 @@ spec:
             externalAccess:
               host: '{{host}}'
             ingress:
+              # hosts:
+              #   - host: '{{host}}'
+              #     paths:
+              #       - path: /api
+              #         pathType: Prefix
+              #         backend:
+              #           service:
+              #             name: backend
+              #             port:
+              #               number: 5000
+              #       - path: /
+              #         pathType: Prefix
+              #         backend:
+              #           service:
+              #             name: frontend
+              #             port:
+              #               number: 80
               hosts:
                 - host: '{{host}}'
-                  paths:
-                    - path: /api
-                      pathType: Prefix
-                      backend:
-                        service:
-                          name: backend
-                          port:
-                            number: 5000
-                    - path: /
-                      pathType: Prefix
-                      backend:
-                        service:
-                          name: frontend
-                          port:
-                            number: 80
+
               tls:
                 issuer: '{{tlsIssuer}}'
+            backup:
+              bucketName: '{{backupBucket}}'
       destination:
         server: https://kubernetes.default.svc
         namespace: '{{namespace}}'
