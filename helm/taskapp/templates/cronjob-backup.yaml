@@ -1,0 +1,71 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "taskapp.fullname" . }}-db-backup
+  namespace: {{ .Values.namespace }}
+spec:
+  # Runs at 2:00 AM every day. Modify if needed!
+  schedule: "0 2 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup-worker
+            # Use the postgres image so we natively have the pg_dump tool
+            image: postgres:16-alpine
+            command:
+            - /bin/sh
+            - -c
+            - |
+              # Install AWS CLI into the temporary alpine pod
+              apk add --no-cache aws-cli
+
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+              BACKUP_FILE="/tmp/taskapp_backup_${TIMESTAMP}.sql.gz"
+
+              echo "⏳ Starting database backup..."
+              # Dump the DB and compress it immediately to save space
+              pg_dump -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} | gzip > ${BACKUP_FILE}
+
+              echo "☁️ Uploading to AWS S3..."
+              # The bucket name pattern matches what Terraform created in Step 1
+              AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+              TARGET_BUCKET="tsa-capstone-backups-{{ regexReplaceAll "taskapp-" .Values.namespace "" }}-${AWS_ACCOUNT_ID}"
+
+              aws s3 cp ${BACKUP_FILE} s3://${TARGET_BUCKET}/postgres/${TIMESTAMP}.sql.gz
+
+              echo "✅ Backup complete!"
+            env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Chart.Name }}-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Chart.Name }}-config
+                  key: POSTGRES_DB
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Chart.Name }}-secrets
+                  key: POSTGRES_PASSWORD
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Chart.Name }}-secrets
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Chart.Name }}-secrets
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: AWS_DEFAULT_REGION
+              value: "eu-north-1"
+          restartPolicy: OnFailure
+{{- end }}

@@ -182,3 +182,24 @@ output "kubeconfig_command" {
 output "ansible_inventory_path" {
   value = local_file.ansible_inventory.filename
 }
+
+# ============================================
+# DATABASE BACKUPS (S3)
+# ============================================
+# Fetch the AWS Account ID dynamically to ensure the bucket name is globally unique
+data "aws_caller_identity" "current" {}
+
+resource "aws_s3_bucket" "db_backups" {
+  bucket        = "${var.project_name}-backups-${var.environment}-${data.aws_caller_identity.current.account_id}"
+  force_destroy = true
+
+  tags = {
+    Name        = "${var.project_name}-db-backups"
+    Environment = var.environment
+  }
+}
+
+# Output the exact bucket name so we can use it
+output "db_backup_bucket_name" {
+  value = aws_s3_bucket.db_backups.bucket
+}
