@@ -20,8 +20,9 @@ node-token
 !.env.complete
 
 # Ignore raw secrets
-secret.yaml
-secrets.yaml
+/secret.yaml
+/secrets.yaml
+/manifests/secret.yaml
 
 # DO NOT ignore sealed secrets (GitOps needs them!)
 !sealed-secret.yaml

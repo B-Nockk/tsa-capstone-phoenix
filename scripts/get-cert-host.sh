@@ -16,7 +16,8 @@ NC='\033[0m'
 
 ENV=${1:-dev}
 CLOUD=${2:-local}
-HOST_PREFIX=${3:-taskapp}
+APP_NAME=${3:-taskapp}
+HOST_PREFIX=${4:-$APP_NAME}
 
 # ============================================
 # Get host based on environment

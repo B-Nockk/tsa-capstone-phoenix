@@ -1,13 +1,14 @@
 # ============================================
 # cicd/pipeline.mk - CI/CD Pipeline Commands
 # ============================================
-DOCKER_REGISTRY  ?= ghcr.io
-DOCKER_ORG       ?= $(shell gh api user -q .login 2>/dev/null || echo "your-org")
-BACKEND_IMAGE    ?= $(DOCKER_REGISTRY)/$(DOCKER_ORG)/taskapp-backend
-FRONTEND_IMAGE   ?= $(DOCKER_REGISTRY)/$(DOCKER_ORG)/taskapp-frontend
-IMAGE_TAG        ?= latest
-BACKEND_CONTEXT  ?= ../tsa_taskapp_backend_cicd
-FRONTEND_CONTEXT ?= ../tsa_taskapp_frontend_cicd
+DOCKER_REGISTRY		?= ghcr.io
+DOCKER_ORG			?= $(shell gh api user -q .login 2>/dev/null || echo "your-org")
+BACKEND_IMAGE		?= $(DOCKER_REGISTRY)/$(DOCKER_ORG)/taskapp-backend
+FRONTEND_IMAGE		?= $(DOCKER_REGISTRY)/$(DOCKER_ORG)/taskapp-frontend
+BACKEND_IMAGE_TAG	?= latest
+FRONTEND_IMAGE_TAG	?= latest
+BACKEND_CONTEXT		?= ../tsa_taskapp_backend_cicd
+FRONTEND_CONTEXT	?= ../tsa_taskapp_frontend_cicd
 
 .PHONY: help-cicd
 help-cicd:
@@ -23,13 +24,13 @@ ci-validate: ## Validate all configurations
 
 .PHONY: ci-build-images
 ci-build-images: ## Build Docker images
-	@if [ -f "$(BACKEND_CONTEXT)/Dockerfile" ]; then docker build -t $(BACKEND_IMAGE):$(IMAGE_TAG) $(BACKEND_CONTEXT); fi
-	@if [ -f "$(FRONTEND_CONTEXT)/Dockerfile" ]; then docker build -t $(FRONTEND_IMAGE):$(IMAGE_TAG) $(FRONTEND_CONTEXT); fi
+	@if [ -f "$(BACKEND_CONTEXT)/Dockerfile" ]; then docker build -t $(BACKEND_IMAGE):$(BACKEND_IMAGE_TAG) $(BACKEND_CONTEXT); fi
+	@if [ -f "$(FRONTEND_CONTEXT)/Dockerfile" ]; then docker build -t $(FRONTEND_IMAGE):$(FRONTEND_IMAGE_TAG) $(FRONTEND_CONTEXT); fi
 
 .PHONY: ci-push-images
 ci-push-images: ## Push images to registry
-	@docker push $(BACKEND_IMAGE):$(IMAGE_TAG)
-	@docker push $(FRONTEND_IMAGE):$(IMAGE_TAG)
+	@docker push $(BACKEND_IMAGE):$(BACKEND_IMAGE_TAG)
+	@docker push $(FRONTEND_IMAGE):$(FRONTEND_IMAGE_TAG)
 
 .PHONY: ci-pipeline
 ci-pipeline: ## Full CI/CD pipeline

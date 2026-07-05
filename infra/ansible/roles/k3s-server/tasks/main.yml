@@ -74,6 +74,14 @@
   failed_when: calico_cr_result.rc != 0 and 'AlreadyExists' not in calico_cr_result.stderr
   changed_when: "'created' in calico_cr_result.stdout"
 
+- name: Force VXLAN encapsulation for all node pairs (fixes AWS same-subnet routing bug)
+  ansible.builtin.command: >
+    kubectl patch ippool default-ipv4-ippool --type merge
+    -p '{"spec":{"vxlanMode":"Always"}}'
+  register: patch_result
+  retries: 6
+  delay: 10
+  until: patch_result.rc == 0
 # ==============================================================================
 # TOKEN CAPTURE FOR WORKERS
 # ==============================================================================

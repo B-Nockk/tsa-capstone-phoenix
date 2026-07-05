@@ -5,6 +5,9 @@ HELM_DIR           ?= helm/taskapp
 SECRETS_DIR        ?= .secrets
 LOCAL_SECRETS_FILE ?= $(SECRETS_DIR)/$(ENV).env
 
+ENV_VALUES_FILE := $(wildcard $(HELM_DIR)/values-$(ENV).yaml)
+VALUES_FLAG     := $(if $(ENV_VALUES_FILE),--values $(ENV_VALUES_FILE),)
+
 .PHONY: help-helm-app
 help-helm-app:
 	@echo "$(CYAN)Helm App Lifecycle:$(RESET)"
@@ -23,26 +26,40 @@ helm-secrets-local: ## Generate local secrets
 		echo "SECRET_KEY=$$(openssl rand -base64 32)" >> $(LOCAL_SECRETS_FILE); \
 	fi
 
+# .PHONY: helm-deploy
+# helm-deploy: ## Deploy/upgrade application via Helm
+# ifeq ($(ENV),dev)
+# 	@$(MAKE) helm-secrets-local
+# 	@bash -c 'set -a; source $(LOCAL_SECRETS_FILE); set +a; helm upgrade --install taskapp $(HELM_DIR) --namespace $(NAMESPACE) --create-namespace --values $(HELM_DIR)/values-$(ENV).yaml --set secrets.postgresPassword=$$POSTGRES_PASSWORD --set secrets.secretKey=$$SECRET_KEY'
+# else
+# 	@helm upgrade --install taskapp $(HELM_DIR) --namespace $(NAMESPACE) --create-namespace --values $(HELM_DIR)/values-$(ENV).yaml --set secrets.postgresPassword=$$POSTGRES_PASSWORD --set secrets.secretKey=$$SECRET_KEY
+# endif
+
 .PHONY: helm-deploy
-helm-deploy: ## Deploy/upgrade application via Helm
+helm-deploy:
 ifeq ($(ENV),dev)
 	@$(MAKE) helm-secrets-local
-	@bash -c 'set -a; source $(LOCAL_SECRETS_FILE); set +a; helm upgrade --install taskapp $(HELM_DIR) --namespace $(NAMESPACE) --create-namespace --values $(HELM_DIR)/values-$(ENV).yaml --set secrets.postgresPassword=$$POSTGRES_PASSWORD --set secrets.secretKey=$$SECRET_KEY'
+	@bash -c 'set -a; source $(LOCAL_SECRETS_FILE); set +a; \
+	  helm upgrade --install $(PROJECT_NAME) $(HELM_DIR) --namespace $(NAMESPACE) --create-namespace \
+	  $(VALUES_FLAG) --set namespace=$(NAMESPACE) \
+	  --set secrets.postgresPassword=$$POSTGRES_PASSWORD --set secrets.secretKey=$$SECRET_KEY'
 else
-	@helm upgrade --install taskapp $(HELM_DIR) --namespace $(NAMESPACE) --create-namespace --values $(HELM_DIR)/values-$(ENV).yaml --set secrets.postgresPassword=$$POSTGRES_PASSWORD --set secrets.secretKey=$$SECRET_KEY
+	@helm upgrade --install $(PROJECT_NAME) $(HELM_DIR) --namespace $(NAMESPACE) --create-namespace \
+	  $(VALUES_FLAG) --set namespace=$(NAMESPACE) \
+	  --set secrets.postgresPassword=$$POSTGRES_PASSWORD --set secrets.secretKey=$$SECRET_KEY
 endif
 
 .PHONY: helm-deploy-cloud
 helm-deploy-cloud: ## Deploy to cloud with TLS
-	@helm upgrade --install taskapp $(HELM_DIR) --namespace $(NAMESPACE) --create-namespace --values $(HELM_DIR)/values-prod.yaml --set secrets.postgresPassword=$$POSTGRES_PASSWORD --set secrets.secretKey=$$SECRET_KEY --set ingress.hosts[0].host=$(HOST) --set ingress.tls.enabled=true
+	@helm upgrade --install $(PROJECT_NAME) $(HELM_DIR) --namespace $(NAMESPACE) --create-namespace --values $(HELM_DIR)/values-prod.yaml --set secrets.postgresPassword=$$POSTGRES_PASSWORD --set secrets.secretKey=$$SECRET_KEY --set ingress.hosts[0].host=$(HOST) --set ingress.tls.enabled=true
 
 .PHONY: helm-rollback
 helm-rollback: ## Rollback application
-	@helm rollback taskapp -n $(NAMESPACE)
+	@helm rollback $(PROJECT_NAME) -n $(NAMESPACE)
 
 .PHONY: helm-uninstall
 helm-uninstall: ## Uninstall application
-	@helm uninstall taskapp -n $(NAMESPACE) || true
+	@helm uninstall $(PROJECT_NAME) -n $(NAMESPACE) || true
 
 .PHONY: helm-status
 helm-status: ## Show deployment status
@@ -58,13 +75,23 @@ helm-lint: ## Lint Helm chart
 # ============================================
 .PHONY: helm-history helm-template helm-dry-run
 helm-history: ## Show release history
-	@helm history taskapp -n $(NAMESPACE)
+	@helm history $(PROJECT_NAME) -n $(NAMESPACE)
+
+# helm-template: ## Render Helm templates
+# 	@helm template $(PROJECT_NAME) $(HELM_DIR) --values $(HELM_DIR)/values-$(ENV).yaml
+
+# helm-dry-run: ## Dry run Helm deployment
+# 	@helm upgrade --install $(PROJECT_NAME) $(HELM_DIR) \
+# 		--namespace $(NAMESPACE) \
+# 		--values $(HELM_DIR)/values-$(ENV).yaml \
+# 		--dry-run --debug
+
 
 helm-template: ## Render Helm templates
-	@helm template taskapp $(HELM_DIR) --values $(HELM_DIR)/values-$(ENV).yaml
+	@helm template $(PROJECT_NAME) $(HELM_DIR) $(VALUES_FLAG)
 
 helm-dry-run: ## Dry run Helm deployment
-	@helm upgrade --install taskapp $(HELM_DIR) \
+	@helm upgrade --install $(PROJECT_NAME) $(HELM_DIR) \
 		--namespace $(NAMESPACE) \
-		--values $(HELM_DIR)/values-$(ENV).yaml \
+		$(VALUES_FLAG) \
 		--dry-run --debug

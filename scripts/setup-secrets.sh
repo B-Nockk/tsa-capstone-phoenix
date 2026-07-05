@@ -35,6 +35,9 @@ SEALED_CONTROLLER_NAME="${SEALED_CONTROLLER_NAME:-sealed-secrets}" # Bitnami Hel
 # Helm Repo
 SEALED_SECRETS_REPO="${SEALED_SECRETS_REPO:-https://bitnami.github.io/sealed-secrets}"
 
+HELM_TEMPLATE_DIR="$ROOT_DIR/helm/taskapp/templates"
+# TARGET_FILE="$HELM_TEMPLATE_DIR/sealedsecret-${ENV}.yaml"
+
 # Automation flag (set to 'true' to skip interactive prompts, useful for CI/Make)
 AUTO_INJECT="${AUTO_INJECT:-false}"
 
@@ -118,74 +121,132 @@ export POSTGRES_PASSWORD
 export SECRET_KEY
 
 # ============================================
-# 4. Create SealedSecret for GitOps
+# 4. old: Create SealedSecret for GitOps
 # ============================================
 
-echo -e "${YELLOW}🔒 Creating SealedSecret for $ENV...${NC}"
+# echo -e "${YELLOW}🔒 Creating SealedSecret for $ENV...${NC}"
 
-# Check if sealed-secrets controller is installed
-if ! kubectl get namespace "$SEALED_NAMESPACE" &>/dev/null; then
-    echo -e "${RED}❌ SealedSecrets controller not found in namespace '$SEALED_NAMESPACE'!${NC}"
-    echo -e "${YELLOW}Installing SealedSecrets...${NC}"
+# # Check if sealed-secrets controller is installed
+# if ! kubectl get namespace "$SEALED_NAMESPACE" &>/dev/null; then
+#     echo -e "${RED}❌ SealedSecrets controller not found in namespace '$SEALED_NAMESPACE'!${NC}"
+#     echo -e "${YELLOW}Installing SealedSecrets...${NC}"
 
-    helm repo add sealed-secrets "$SEALED_SECRETS_REPO" --force-update
-    helm upgrade --install sealed-secrets sealed-secrets/sealed-secrets \
-        --namespace "$SEALED_NAMESPACE" \
-        --create-namespace \
-        --wait
+#     helm repo add sealed-secrets "$SEALED_SECRETS_REPO" --force-update
+#     helm upgrade --install sealed-secrets sealed-secrets/sealed-secrets \
+#         --namespace "$SEALED_NAMESPACE" \
+#         --create-namespace \
+#         --wait
 
-    echo -e "${GREEN}✅ SealedSecrets installed${NC}"
-fi
+#     echo -e "${GREEN}✅ SealedSecrets installed${NC}"
+# fi
 
-# Create the sealed secret
-mkdir -p "$SEALED_DIR"
+# # Create the sealed secret
+# mkdir -p "$SEALED_DIR"
 
-# Generate sealed secret from environment
+# # Generate sealed secret from environment
+# kubectl create secret generic "$SECRET_NAME" \
+#     --namespace "$APP_NAMESPACE" \
+#     --dry-run=client \
+#     -o yaml \
+#     --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+#     --from-literal=SECRET_KEY="$SECRET_KEY" \
+#     | kubeseal \
+#         --controller-name="$SEALED_CONTROLLER_NAME" \
+#         --controller-namespace="$SEALED_NAMESPACE" \
+#         --format yaml \
+#     > "$SEALED_DIR/sealed-secret.yaml"
+
+# echo -e "${GREEN}✅ SealedSecret created at: $SEALED_DIR/sealed-secret.yaml${NC}"
+
+
+echo -e "${YELLOW}🔒 Generating Automated SealedSecret for $ENV...${NC}"
+
+# 1. Generate the raw sealed secret into a temporary file
 kubectl create secret generic "$SECRET_NAME" \
     --namespace "$APP_NAMESPACE" \
     --dry-run=client \
     -o yaml \
     --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
     --from-literal=SECRET_KEY="$SECRET_KEY" \
+    --from-literal=GRAFANA_PASSWORD="$GRAFANA_PASSWORD" \
+    --from-literal=AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+    --from-literal=AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
     | kubeseal \
         --controller-name="$SEALED_CONTROLLER_NAME" \
         --controller-namespace="$SEALED_NAMESPACE" \
         --format yaml \
-    > "$SEALED_DIR/sealed-secret.yaml"
+    > /tmp/sealed-${ENV}.yaml
 
-echo -e "${GREEN}✅ SealedSecret created at: $SEALED_DIR/sealed-secret.yaml${NC}"
+# 2. Define the target Helm templates directory
+# HELM_TEMPLATE_DIR="$ROOT_DIR/helm/taskapp/templates"
+mkdir -p "$HELM_TEMPLATE_DIR"
+TARGET_FILE="$HELM_TEMPLATE_DIR/sealedsecret-${ENV}.yaml"
+
+# 3. Wrap the file in a Helm conditional so it only deploys to the matching environment
+echo "{{- if eq .Values.namespace \"$APP_NAMESPACE\" }}" > "$TARGET_FILE"
+cat /tmp/sealed-${ENV}.yaml >> "$TARGET_FILE"
+echo "{{- end }}" >> "$TARGET_FILE"
+
+# 4. Clean up
+rm /tmp/sealed-${ENV}.yaml
+
+echo -e "${GREEN}✅ Success! Automated Helm template created at: $TARGET_FILE${NC}"
 
 # ============================================
 # 5. Inject Secrets to Cluster (Optional)
 # ============================================
 
+# echo -e "${CYAN}========================================${NC}"
+# echo -e "${YELLOW}⚠️  STEP 5 HAS BEEN SUN SETTED        ${NC}"
+# echo -e "${CYAN}========================================${NC}"
+
+# if [ "$AUTO_INJECT" = "true" ]; then
+#     echo -e "${YELLOW}🔑 AUTO_INJECT=true: Injecting secrets to cluster automatically...${NC}"
+
+#     # Ensure namespace exists
+#     kubectl create namespace "$APP_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+
+#     # Apply the sealed secret
+#     kubectl apply -f "$SEALED_DIR/sealed-secret.yaml"
+
+#     echo -e "${GREEN}✅ Secrets injected to cluster${NC}"
+# else
+#     echo -e "${YELLOW}🔑 Inject secrets to cluster? (y/N)${NC}"
+#     read -r -n 1 response
+#     echo
+#     if [[ "$response" =~ ^[Yy]$ ]]; then
+#         echo -e "${YELLOW}Injecting secrets to cluster...${NC}"
+
+#         # Ensure namespace exists
+#         kubectl create namespace "$APP_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+
+#         # Apply the sealed secret
+#         kubectl apply -f "$SEALED_DIR/sealed-secret.yaml"
+
+#         echo -e "${GREEN}✅ Secrets injected to cluster${NC}"
+#     else
+#         echo -e "${YELLOW}⏭️  Skipping cluster injection.${NC}"
+#     fi
+# fi
+
+# ============================================
+# 5. Commit & Push (CI only — gated by AUTO_INJECT)
+# ============================================
 if [ "$AUTO_INJECT" = "true" ]; then
-    echo -e "${YELLOW}🔑 AUTO_INJECT=true: Injecting secrets to cluster automatically...${NC}"
-
-    # Ensure namespace exists
-    kubectl create namespace "$APP_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
-
-    # Apply the sealed secret
-    kubectl apply -f "$SEALED_DIR/sealed-secret.yaml"
-
-    echo -e "${GREEN}✅ Secrets injected to cluster${NC}"
-else
-    echo -e "${YELLOW}🔑 Inject secrets to cluster? (y/N)${NC}"
-    read -r -n 1 response
-    echo
-    if [[ "$response" =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}Injecting secrets to cluster...${NC}"
-
-        # Ensure namespace exists
-        kubectl create namespace "$APP_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
-
-        # Apply the sealed secret
-        kubectl apply -f "$SEALED_DIR/sealed-secret.yaml"
-
-        echo -e "${GREEN}✅ Secrets injected to cluster${NC}"
+    echo -e "${YELLOW}📦 Committing generated SealedSecret to git...${NC}"
+    cd "$ROOT_DIR"
+    git config user.name "github-actions[bot]"
+    git config user.email "github-actions[bot]@users.noreply.github.com"
+    git add "$TARGET_FILE"
+    if git diff --cached --quiet; then
+        echo -e "${GREEN}✅ No changes to commit (sealed secret unchanged)${NC}"
     else
-        echo -e "${YELLOW}⏭️  Skipping cluster injection.${NC}"
+        git commit -m "chore: update sealed secret for $ENV [skip ci]"
+        git push origin HEAD:${GITHUB_REF_NAME:-$(git branch --show-current)}
+        echo -e "${GREEN}✅ Sealed secret committed and pushed${NC}"
     fi
+else
+    echo -e "${YELLOW}⏭️  AUTO_INJECT=false — skipping git commit (local/manual run)${NC}"
 fi
 
 # ============================================
@@ -196,12 +257,12 @@ echo -e "\n${GREEN}========================================${NC}"
 echo -e "${GREEN}✅ Secrets Setup Complete!${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo -e "${YELLOW}📁 Secrets file: $ENV_FILE${NC}"
-echo -e "${YELLOW}🔒 SealedSecret: $SEALED_DIR/sealed-secret.yaml${NC}"
+echo -e "${YELLOW}🔒 Helm Template: $TARGET_FILE${NC}"
 echo -e "${YELLOW}📦 GitOps: Commit the sealed secret to git${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
-echo "  1. Edit $ENV_FILE if needed"
-echo "  2. Commit gitops/sealed-secrets/$ENV/sealed-secret.yaml"
-echo "  3. Run: make argo-apply ENV=$ENV"
+echo "  1. Edit $ENV_FILE if you need to change passwords manually"
+echo "  2. Commit helm/taskapp/templates/sealedsecret-${ENV}.yaml"
+echo "  3. ArgoCD or Helm will automatically apply it on the next sync!"
 echo ""
 echo -e "${YELLOW}⚠️  Remember to keep $ENV_FILE gitignored!${NC}"

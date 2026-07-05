@@ -27,7 +27,7 @@ k8s-issuer-status: ## Show ClusterIssuer status
 
 .PHONY: k8s-cert-get-host
 k8s-cert-get-host: ## Get the hostname for certificates
-	@bash $(CERT_SCRIPT) $(ENV) $(CLOUD) taskapp
+	@bash $(CERT_SCRIPT) $(ENV) $(CLOUD) $(APP_NAME)
 
 .PHONY: k8s-cert-wait
 k8s-cert-wait: ## Wait for certificate to be ready

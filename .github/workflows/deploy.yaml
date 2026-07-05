@@ -49,6 +49,9 @@
       runs-on: ubuntu-latest
       timeout-minutes: ${{ fromJSON(github.event.inputs.timeout_minutes || '45') }}
       environment: ${{ github.event.inputs.environment || 'dev' }}
+      permissions:
+        contents: write
+
 
       steps:
         - name: Checkout Code
@@ -60,7 +63,8 @@
           run: |
             echo "🔄 Dynamically loading repository variables..."
             # Intercept TF_VARs and force the variable name back to lowercase for Terraform
-            echo "$GH_VARS" | jq -r 'to_entries[] | if (.key | startswith("TF_VAR_")) then "TF_VAR_" + (.key[7:] | ascii_downcase) + "<<__EOV__\n\(.value)\n__EOV__" else "\(.key)<<__EOV__\n\(.value)\n__EOV__" end' >> "$GITHUB_ENV"
+            # echo "$GH_VARS" | jq -r 'to_entries[] | if (.key | startswith("TF_VAR_")) then "TF_VAR_" + (.key[7:] | ascii_downcase) + "<<__EOV__\n\(.value)\n__EOV__" else "\(.key)<<__EOV__\n\(.value)\n__EOV__" end' >> "$GITHUB_ENV"
+            echo "$GH_VARS" | jq -r 'to_entries[] | select(.key != "NAMESPACE") | if (.key | startswith("TF_VAR_")) then "TF_VAR_" + (.key[7:] | ascii_downcase) + "<<__EOV__\n\(.value)\n__EOV__" else "\(.key)<<__EOV__\n\(.value)\n__EOV__" end' >> "$GITHUB_ENV"
             echo "✅ Variables loaded!"
 
         - name: Setup CI Dependencies
@@ -270,12 +274,47 @@
             fi
 
         # --- STAGE 4: GITOPS DEPLOYMENT ---
+        - name: Generate and commit sealed secrets
+          if: github.event.inputs.deploy_argo != 'false'
+          env:
+            POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+            SECRET_KEY: ${{ secrets.SECRET_KEY }}
+            GRAFANA_PASSWORD: ${{ secrets.GRAFANA_PASSWORD }}
+            AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          run: |
+            make sec-generate ENV=${{ env.ENV }} AUTO_INJECT=true
+
+        - name: Inject backup bucket name
+          if: github.event.inputs.deploy_argo != 'false'
+          run: |
+            BUCKET=$(cd infra/terraform && terraform output -raw db_backup_bucket_name)
+            sed -i "s|INJECT_BACKUP_BUCKET|$BUCKET|g" gitops/applicationset.yaml
+
         - name: Deploy via ArgoCD
           if: github.event.inputs.deploy_argo != 'false'
           run: |
+            # 1. Determine active TLS Issuer based on environment and variables
+            if [ -n "${{ vars.TLS_ISSUER }}" ]; then
+              export ACTIVE_ISSUER="${{ vars.TLS_ISSUER }}"
+            elif [ "${{ env.ENV }}" != "local" ]; then
+              export ACTIVE_ISSUER="letsencrypt-prod"
+            else
+              export ACTIVE_ISSUER="selfsigned-cluster-issuer"
+            fi
+
             # Inject repo dynamically (with .git appended)
-            sed -i "s|repoURL:.*|repoURL: ${{ github.server_url }}/${{ github.repository }}.git|g" gitops/application.${{ env.ENV }}.yaml
-            sed -i "s|targetRevision:.*|targetRevision: ${{ github.ref_name }}|g" gitops/application.${{ env.ENV }}.yaml
+            # sed -i "s|repoURL:.*|repoURL: ${{ github.server_url }}/${{ github.repository }}.git|g" gitops/application.${{ env.ENV }}.yaml
+            # sed -i "s|targetRevision:.*|targetRevision: ${{ github.ref_name }}|g" gitops/application.${{ env.ENV }}.yaml
+
+            sed -i "s|repoURL:.*|repoURL: ${{ github.server_url }}/${{ github.repository }}.git|g" gitops/applicationset.yaml
+            sed -i "s|targetRevision:.*|targetRevision: ${{ github.ref_name }}|g" gitops/applicationset.yaml
+
+            # 3. Inject Domain and TLS Issuer placeholders
+            sed -i "s|INJECT_DOMAIN_NAME|${{ vars.DOMAIN_NAME }}|g" gitops/applicationset.yaml
+            sed -i "s|INJECT_TLS_ENABLED|${{ vars.INGRESS_TLS_ENABLED }}|g" gitops/applicationset.yaml
+            sed -i "s|INJECT_TLS_ISSUER|$ACTIVE_ISSUER|g" gitops/applicationset.yaml
+
             make argo-deploy ENV=${{ env.ENV }} HOST=${{ env.HOST }}
 
         - name: Run Tests

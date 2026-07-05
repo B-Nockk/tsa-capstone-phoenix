@@ -1,0 +1,78 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "taskapp.fullname" . }}-db-backup
+  namespace: {{ .Values.namespace }}
+spec:
+  # Runs at 2:00 AM every day. Modify if needed!
+  schedule: "0 2 * * *"
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 600
+      template:
+        metadata:
+          labels:
+            app: db-backup
+        spec:
+          containers:
+          - name: backup-worker
+            image: postgres:16-alpine
+            command:
+            - /bin/sh
+            - -c
+            - |
+              apk add --no-cache aws-cli
+
+              TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+              BACKUP_FILE="/tmp/taskapp_backup_${TIMESTAMP}.sql.gz"
+
+              echo "⏳ Starting database backup..."
+              pg_dump -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} | gzip > ${BACKUP_FILE}
+
+              echo "☁️ Uploading to AWS S3..."
+              aws s3 cp ${BACKUP_FILE} s3://${TARGET_BUCKET}/postgres/${TIMESTAMP}.sql.gz
+
+              echo "✅ Backup complete!"
+            env:
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Chart.Name }}-config
+                  key: POSTGRES_USER
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Chart.Name }}-config
+                  key: POSTGRES_DB
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Chart.Name }}-secrets
+                  key: POSTGRES_PASSWORD
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Chart.Name }}-secrets
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Chart.Name }}-secrets
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: AWS_DEFAULT_REGION
+              value: "eu-north-1"
+            - name: TARGET_BUCKET
+              value: {{ required "backup.bucketName must be set — see db_backup_bucket_name Terraform output" .Values.backup.bucketName | quote }}
+            resources:
+              requests:
+                memory: "128Mi"
+                cpu: "100m"
+              limits:
+                memory: "256Mi"
+                cpu: "300m"
+          restartPolicy: OnFailure
+{{- end }}

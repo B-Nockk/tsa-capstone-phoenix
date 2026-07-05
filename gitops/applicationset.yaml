@@ -1,0 +1,102 @@
+# gitops/applicationset.yaml
+# Replaces gitops/application.dev.yaml + gitops/application.prod.yaml.
+# To add an environment (e.g. staging), add one entry to `elements` below —
+# namespace, project, and syncPolicy are all generated consistently from the
+# same template, so they can't drift out of sync between environments.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: taskapp
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - env: dev
+            namespace: taskapp-dev
+            replicasBackend: "2"
+            replicasFrontend: "2"
+            flaskEnv: development
+            host: INJECT_DOMAIN_NAME
+            secretsEnabled: "false"
+            sealedSecretsEnabled: "true"
+            tlsIssuer: INJECT_TLS_ISSUER
+            isTlsEnabled: INJECT_TLS_ENABLED
+            backupBucket: INJECT_BACKUP_BUCKET
+          # - env: prod
+          #   namespace: taskapp-prod
+          #   replicasBackend: "3"
+          #   replicasFrontend: "3"
+          #   flaskEnv: production
+          #   host: taskapp.example.com
+          #   secretsEnabled: "false"
+          #   sealedSecretsEnabled: "true"
+          #   tlsIssuer: letsencrypt-prod
+          # - env: staging   <-- adding an env is just this block, no new file
+          #   namespace: taskapp-staging
+          #   ...
+  template:
+    metadata:
+      name: 'taskapp-{{env}}'
+      namespace: argocd
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: taskapp
+      source:
+        repoURL: https://github.com/B-Nockk/tsa-capstone-phoenix.git
+        targetRevision: main
+        path: helm/taskapp
+        helm:
+          # Parameters safely cast "true"/"false" strings into actual booleans for Helm
+          parameters:
+            - name: secrets.enabled
+              value: '{{secretsEnabled}}'
+            - name: sealedSecrets.enabled
+              value: '{{sealedSecretsEnabled}}'
+          valuesObject:
+            namespace: '{{namespace}}'
+            replicaCount:
+              backend: '{{replicasBackend}}'
+              frontend: '{{replicasFrontend}}'
+            backend:
+              env:
+                FLASK_ENV: '{{flaskEnv}}'
+            externalAccess:
+              host: '{{host}}'
+            ingress:
+              # hosts:
+              #   - host: '{{host}}'
+              #     paths:
+              #       - path: /api
+              #         pathType: Prefix
+              #         backend:
+              #           service:
+              #             name: backend
+              #             port:
+              #               number: 5000
+              #       - path: /
+              #         pathType: Prefix
+              #         backend:
+              #           service:
+              #             name: frontend
+              #             port:
+              #               number: 80
+              hosts:
+                - host: '{{host}}'
+
+              tls:
+                enabled: '{{isTlsEnabled}}' # '{{isTlsEnabled: "true"}}'
+                issuer: '{{tlsIssuer}}' # '{{tlsIssuer: "selfsigned-cluster-issuer"}}'
+            backup:
+              bucketName: '{{backupBucket}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{namespace}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          # - ApplyOutOfSyncOnly=true
