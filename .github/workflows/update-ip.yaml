@@ -54,6 +54,18 @@ jobs:
           make tf-backend-setup ENV=${{ env.ENV }}
           make tf-init ENV=${{ env.ENV }}
 
+      # - name: Apply updated SSH allow-list (targeted — minimal blast radius)
+      #   run: |
+      #     RUNNER_IP="$(curl -s https://checkip.amazonaws.com)/32"
+      #     echo "Runner IP: $RUNNER_IP"
+      #     COMBINED_IPS=$(jq -c -n --arg a "${{ inputs.admin_ip }}" --arg r "$RUNNER_IP" '[$a, $r]')
+      #     echo "Applying IPs: $COMBINED_IPS"
+
+      #     cd infra/terraform
+      #     terraform apply -auto-approve \
+      #       -var-file="env/${{ env.ENV }}.tfvars" \
+      #       -var="allowed_ssh_ips=$COMBINED_IPS" \
+      #       -target=module.security.aws_security_group_rule.ssh
       - name: Apply updated SSH allow-list (targeted — minimal blast radius)
         run: |
           RUNNER_IP="$(curl -s https://checkip.amazonaws.com)/32"
@@ -63,7 +75,6 @@ jobs:
 
           cd infra/terraform
           terraform apply -auto-approve \
-            -var-file="env/${{ env.ENV }}.tfvars" \
             -var="allowed_ssh_ips=$COMBINED_IPS" \
             -target=module.security.aws_security_group_rule.ssh
 
