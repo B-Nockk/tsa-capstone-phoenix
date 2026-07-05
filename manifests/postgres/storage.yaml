@@ -1,3 +1,4 @@
+# NOTE:: THIS IS COMMENTED OUT IN FAVOUR OF AUTO GENERATED POSTGRES PVC
 # apiVersion: v1
 # kind: PersistentVolumeClaim
 # metadata:
