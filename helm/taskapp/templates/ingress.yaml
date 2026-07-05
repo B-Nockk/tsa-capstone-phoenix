@@ -10,6 +10,14 @@ metadata:
     {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        {{- range .Values.ingress.hosts }}
+        - {{ .host | quote }}
+        {{- end }}
+      secretName: taskapp-tls
+  {{- end }}
   rules:
   {{- range .Values.ingress.hosts }}
   - host: {{ required "A valid domain name is REQUIRED for this deployment!" .host | quote }}

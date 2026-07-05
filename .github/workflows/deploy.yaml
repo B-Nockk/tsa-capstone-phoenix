@@ -312,6 +312,7 @@
 
             # 3. Inject Domain and TLS Issuer placeholders
             sed -i "s|INJECT_DOMAIN_NAME|${{ vars.DOMAIN_NAME }}|g" gitops/applicationset.yaml
+            sed -i "s|INJECT_TLS_ENABLED|${{ vars.INGRESS_TLS_ENABLED }}|g" gitops/applicationset.yaml
             sed -i "s|INJECT_TLS_ISSUER|$ACTIVE_ISSUER|g" gitops/applicationset.yaml
 
             make argo-deploy ENV=${{ env.ENV }} HOST=${{ env.HOST }}

@@ -85,6 +85,7 @@ spec:
                 - host: '{{host}}'
 
               tls:
+                enabled: INJECT_TLS_ENABLED
                 issuer: '{{tlsIssuer}}'
             backup:
               bucketName: '{{backupBucket}}'
