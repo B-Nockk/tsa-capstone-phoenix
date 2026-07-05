@@ -21,6 +21,7 @@ spec:
             secretsEnabled: "false"
             sealedSecretsEnabled: "true"
             tlsIssuer: INJECT_TLS_ISSUER
+            isTlsEnabled: INJECT_TLS_ENABLED
             backupBucket: INJECT_BACKUP_BUCKET
           # - env: prod
           #   namespace: taskapp-prod
@@ -85,8 +86,8 @@ spec:
                 - host: '{{host}}'
 
               tls:
-                enabled: INJECT_TLS_ENABLED
-                issuer: '{{tlsIssuer}}'
+                enabled: '{{isTlsEnabled}}' # '{{isTlsEnabled: "true"}}'
+                issuer: '{{tlsIssuer}}' # '{{tlsIssuer: "selfsigned-cluster-issuer"}}'
             backup:
               bucketName: '{{backupBucket}}'
       destination:
