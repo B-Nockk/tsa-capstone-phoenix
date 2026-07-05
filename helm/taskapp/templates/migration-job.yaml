@@ -4,9 +4,12 @@ kind: Job
 metadata:
   name: {{ include "taskapp.fullname" . }}-migrate-{{ .Values.images.backend.tag }}
   namespace: {{ .Values.namespace }}
+  # annotations:
+  #   "helm.sh/hook": pre-install,pre-upgrade
+  #   "helm.sh/hook-weight": "0"
+  #   "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
   annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "0"
+    "argocd.argoproj.io/sync-wave": "1"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
   backoffLimit: 2

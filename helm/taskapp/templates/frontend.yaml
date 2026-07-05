@@ -4,6 +4,8 @@ kind: Deployment
 metadata:
   name: frontend
   namespace: {{ .Values.namespace }}
+  annotations:
+    "argocd.argoproj.io/sync-wave": "2"
 spec:
   replicas: {{ .Values.replicaCount.frontend }}
   selector:
