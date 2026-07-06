@@ -249,6 +249,11 @@
             # Helm automatically inherits KUBECONFIG from the Makefile!
             make sys-setup ENV=${{ env.ENV }} CLOUD=aws ARGOCD_RESET_PASSWORD=false
 
+        - name: Fix in-cluster DNS hairpin for ACME HTTP-01 self-check
+          if: github.event.inputs.deploy_argo != 'false'
+          run: |
+            make k8s-coredns-hairpin-fix ENV=${{ env.ENV }} DOMAIN_FOR_TLS=${{ vars.DOMAIN_NAME }}
+
         - name: Manage Domain (DuckDNS)
           if: github.event.inputs.use_duckdns == 'true'
           env:
