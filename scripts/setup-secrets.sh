@@ -232,6 +232,8 @@ echo -e "${GREEN}✅ Success! Automated Helm template created at: $TARGET_FILE${
 # ============================================
 # 5. Commit & Push (CI only — gated by AUTO_INJECT)
 # ============================================
+SOURCE_COMMIT_MSG=$(git -C "$ROOT_DIR" log -1 --pretty=%s 2>/dev/null || echo "manual/unknown")
+
 if [ "$AUTO_INJECT" = "true" ]; then
     echo -e "${YELLOW}📦 Committing generated SealedSecret to git...${NC}"
     cd "$ROOT_DIR"
@@ -241,7 +243,7 @@ if [ "$AUTO_INJECT" = "true" ]; then
     if git diff --cached --quiet; then
         echo -e "${GREEN}✅ No changes to commit (sealed secret unchanged)${NC}"
     else
-        git commit -m "chore: update sealed secret for $ENV [skip ci]"
+        git commit -m "chore: update sealed secret for $ENV [skip ci] (source: $SOURCE_COMMIT_MSG)"
         git push origin HEAD:${GITHUB_REF_NAME:-$(git branch --show-current)}
         echo -e "${GREEN}✅ Sealed secret committed and pushed${NC}"
     fi

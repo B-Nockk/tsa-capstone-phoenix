@@ -2,14 +2,16 @@
 ENV=dev
 CLOUD=aws
 APP_NAME=taskapp
-DOMAIN_NAME=nockk-tsa-capstone.duckdns.org
-TLS_ISSUER=letsencrypt-prod
-INGRESS_TLS_ENABLED=true
 ARGOCD_DOMAIN=argocd.nockk-tsa-capstone.duckdns.org
 CERT_EMAIL=ob,ogheneochuko@gmail.com
 GITOPS_REPO_URL=https://github.com/B-Nockk/tsa-capstone-phoenix.git
 GITOPS_TARGET_REVISION=main
 ARGOCD_NAMESPACE=argocd
+
+# INJECTIONS
+DOMAIN_NAME=nockk-tsa-capstone.duckdns.org
+TLS_ISSUER=letsencrypt-prod
+INGRESS_TLS_ENABLED=true
 
 # System/Make Toggles
 ENABLE_REMOTE_STATE=true
