@@ -64,6 +64,7 @@ spec:
             backend:
               env:
                 FLASK_ENV: '{{flaskEnv}}'
+                CORS_ORIGINS: 'https://{{host}},http://localhost:8080,http://localhost:3000'
             externalAccess:
               host: '{{host}}'
             ingress:
