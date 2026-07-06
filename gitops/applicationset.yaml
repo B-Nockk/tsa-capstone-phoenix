@@ -54,6 +54,8 @@ spec:
               value: '{{secretsEnabled}}'
             - name: sealedSecrets.enabled
               value: '{{sealedSecretsEnabled}}'
+            - name: ingress.tls.enabled
+              value: '{{isTlsEnabled}}'
           valuesObject:
             namespace: '{{namespace}}'
             replicaCount:
@@ -86,7 +88,7 @@ spec:
                 - host: '{{host}}'
 
               tls:
-                enabled: '{{isTlsEnabled}}' # '{{isTlsEnabled: "true"}}'
+                # enabled: '{{isTlsEnabled}}' # '{{isTlsEnabled: "true"}}'
                 issuer: '{{tlsIssuer}}' # '{{tlsIssuer: "selfsigned-cluster-issuer"}}'
             backup:
               bucketName: '{{backupBucket}}'
