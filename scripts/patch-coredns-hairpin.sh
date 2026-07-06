@@ -60,7 +60,7 @@ STRIPPED=$(echo "$CURRENT" | awk '
 # (matches "hosts /etc/coredns/NodeHosts {" or similar), rather than
 # creating a second hosts{} block, which CoreDNS rejects outright.
 NEW_COREFILE=$(echo "$STRIPPED" | awk -v ip="$CLUSTER_IP" -v domain="$DOMAIN" '
-  /^[ \t]*hosts\b.*\{[ \t]*$/ && !done {
+  /^[ \t]*hosts[ \t].*\{[ \t]*$/ && !done {
     print
     print "      # BEGIN taskapp-hairpin-fix"
     print "      " ip " " domain
@@ -72,7 +72,7 @@ NEW_COREFILE=$(echo "$STRIPPED" | awk -v ip="$CLUSTER_IP" -v domain="$DOMAIN" '
 ')
 
 MARKER_COUNT=$(echo "$NEW_COREFILE" | grep -c "BEGIN taskapp-hairpin-fix" || true)
-HOSTS_BLOCK_COUNT=$(echo "$NEW_COREFILE" | grep -c "^[ \t]*hosts\b.*{" || true)
+HOSTS_BLOCK_COUNT=$(echo "$NEW_COREFILE" | grep -c "^[ \t]*hosts[ \t].*{" || true)
 
 if [ "$MARKER_COUNT" -ne 1 ]; then
   echo -e "${RED}❌ Failed to safely inject host entry — anchor line not found or matched multiple times. Aborting without applying.${NC}"
