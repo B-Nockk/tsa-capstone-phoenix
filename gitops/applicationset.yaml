@@ -21,7 +21,7 @@ spec:
             secretsEnabled: "false"
             sealedSecretsEnabled: "true"
             tlsIssuer: INJECT_TLS_ISSUER
-            isTlsEnabled: INJECT_TLS_ENABLED
+            enableTls: "true"
             backupBucket: INJECT_BACKUP_BUCKET
           # - env: prod
           #   namespace: taskapp-prod
@@ -54,6 +54,8 @@ spec:
               value: '{{secretsEnabled}}'
             - name: sealedSecrets.enabled
               value: '{{sealedSecretsEnabled}}'
+            - name: ingress.tls.enabled
+              value: '{{enableTls}}'
           valuesObject:
             namespace: '{{namespace}}'
             replicaCount:
@@ -62,6 +64,7 @@ spec:
             backend:
               env:
                 FLASK_ENV: '{{flaskEnv}}'
+                CORS_ORIGINS: 'https://{{host}},http://localhost:8080,http://localhost:3000'
             externalAccess:
               host: '{{host}}'
             ingress:
@@ -86,7 +89,7 @@ spec:
                 - host: '{{host}}'
 
               tls:
-                enabled: '{{isTlsEnabled}}' # '{{isTlsEnabled: "true"}}'
+                # enabled: '{{enableTls}}' # '{{enableTls: "true"}}'
                 issuer: '{{tlsIssuer}}' # '{{tlsIssuer: "selfsigned-cluster-issuer"}}'
             backup:
               bucketName: '{{backupBucket}}'
@@ -100,3 +103,9 @@ spec:
         syncOptions:
           - CreateNamespace=true
           # - ApplyOutOfSyncOnly=true
+
+    ignoreDifferences:
+        - group: apps
+          kind: Deployment
+          jsonPointers:
+            - /spec/replicas

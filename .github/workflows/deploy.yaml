@@ -249,6 +249,11 @@
             # Helm automatically inherits KUBECONFIG from the Makefile!
             make sys-setup ENV=${{ env.ENV }} CLOUD=aws ARGOCD_RESET_PASSWORD=false
 
+        - name: Fix in-cluster DNS hairpin for ACME HTTP-01 self-check
+          if: github.event.inputs.deploy_argo != 'false'
+          run: |
+            make k8s-coredns-hairpin-fix ENV=${{ env.ENV }} DOMAIN_FOR_TLS=${{ vars.DOMAIN_NAME }}
+
         - name: Manage Domain (DuckDNS)
           if: github.event.inputs.use_duckdns == 'true'
           env:
@@ -291,10 +296,35 @@
             BUCKET=$(cd infra/terraform && terraform output -raw db_backup_bucket_name)
             sed -i "s|INJECT_BACKUP_BUCKET|$BUCKET|g" gitops/applicationset.yaml
 
+        # - name: Deploy via ArgoCD
+        #   if: github.event.inputs.deploy_argo != 'false'
+        #   run: |
+        #     # 1. Determine active TLS Issuer based on environment and variables
+        #     if [ -n "${{ vars.TLS_ISSUER }}" ]; then
+        #       export ACTIVE_ISSUER="${{ vars.TLS_ISSUER }}"
+        #     elif [ "${{ env.ENV }}" != "local" ]; then
+        #       export ACTIVE_ISSUER="letsencrypt-prod"
+        #     else
+        #       export ACTIVE_ISSUER="selfsigned-cluster-issuer"
+        #     fi
+
+        #     # Inject repo dynamically (with .git appended)
+        #     # sed -i "s|repoURL:.*|repoURL: ${{ github.server_url }}/${{ github.repository }}.git|g" gitops/application.${{ env.ENV }}.yaml
+        #     # sed -i "s|targetRevision:.*|targetRevision: ${{ github.ref_name }}|g" gitops/application.${{ env.ENV }}.yaml
+
+        #     sed -i "s|repoURL:.*|repoURL: ${{ github.server_url }}/${{ github.repository }}.git|g" gitops/applicationset.yaml
+        #     sed -i "s|targetRevision:.*|targetRevision: ${{ github.ref_name }}|g" gitops/applicationset.yaml
+
+        #     # 3. Inject Domain and TLS Issuer placeholders
+        #     sed -i "s|INJECT_DOMAIN_NAME|${{ vars.DOMAIN_NAME }}|g" gitops/applicationset.yaml
+        #     sed -i "s|INJECT_TLS_ENABLED|${{ vars.INGRESS_TLS_ENABLED }}|g" gitops/applicationset.yaml
+        #     sed -i "s|INJECT_TLS_ISSUER|$ACTIVE_ISSUER|g" gitops/applicationset.yaml
+
+        #     make argo-deploy ENV=${{ env.ENV }} HOST=${{ env.HOST }}
+
         - name: Deploy via ArgoCD
           if: github.event.inputs.deploy_argo != 'false'
           run: |
-            # 1. Determine active TLS Issuer based on environment and variables
             if [ -n "${{ vars.TLS_ISSUER }}" ]; then
               export ACTIVE_ISSUER="${{ vars.TLS_ISSUER }}"
             elif [ "${{ env.ENV }}" != "local" ]; then
@@ -303,17 +333,19 @@
               export ACTIVE_ISSUER="selfsigned-cluster-issuer"
             fi
 
-            # Inject repo dynamically (with .git appended)
-            # sed -i "s|repoURL:.*|repoURL: ${{ github.server_url }}/${{ github.repository }}.git|g" gitops/application.${{ env.ENV }}.yaml
-            # sed -i "s|targetRevision:.*|targetRevision: ${{ github.ref_name }}|g" gitops/application.${{ env.ENV }}.yaml
-
             sed -i "s|repoURL:.*|repoURL: ${{ github.server_url }}/${{ github.repository }}.git|g" gitops/applicationset.yaml
             sed -i "s|targetRevision:.*|targetRevision: ${{ github.ref_name }}|g" gitops/applicationset.yaml
 
-            # 3. Inject Domain and TLS Issuer placeholders
-            sed -i "s|INJECT_DOMAIN_NAME|${{ vars.DOMAIN_NAME }}|g" gitops/applicationset.yaml
-            sed -i "s|INJECT_TLS_ENABLED|${{ vars.INGRESS_TLS_ENABLED }}|g" gitops/applicationset.yaml
-            sed -i "s|INJECT_TLS_ISSUER|$ACTIVE_ISSUER|g" gitops/applicationset.yaml
+            BUCKET=$(cd infra/terraform && terraform output -raw db_backup_bucket_name)
+
+            declare -A INJECTIONS=(
+              [INJECT_DOMAIN_NAME]="${{ vars.DOMAIN_NAME }}"
+              [INJECT_TLS_ISSUER]="$ACTIVE_ISSUER"
+              [INJECT_BACKUP_BUCKET]="$BUCKET"
+            )
+            for placeholder in "${!INJECTIONS[@]}"; do
+              sed -i "s|$placeholder|${INJECTIONS[$placeholder]}|g" gitops/applicationset.yaml
+            done
 
             make argo-deploy ENV=${{ env.ENV }} HOST=${{ env.HOST }}
 
