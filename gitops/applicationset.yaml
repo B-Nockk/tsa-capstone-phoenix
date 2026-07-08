@@ -104,8 +104,8 @@ spec:
           - CreateNamespace=true
           # - ApplyOutOfSyncOnly=true
 
-    ignoreDifferences:
-        - group: apps
-          kind: Deployment
-          jsonPointers:
-            - /spec/replicas
+    # ignoreDifferences:
+    #     - group: apps
+    #       kind: Deployment
+    #       jsonPointers:
+    #         - /spec/replicas
